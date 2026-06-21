@@ -1,0 +1,35 @@
+---
+title: Introduction
+description: Track AI cost, customer attribution, and outcome economics from Node.js apps.
+---
+
+Margovia helps SaaS teams understand whether AI features are profitable by customer, plan, and workflow.
+
+The JavaScript SDK is the instrumentation layer. Install it in the backend that already calls OpenAI, Anthropic, or another model provider, then send usage and attribution events to Margovia.
+
+## What the SDK captures
+
+- AI workflow or feature name
+- User, customer, and account identifiers
+- Customer plan and plan revenue
+- Provider and model
+- Token usage, cache usage, and reasoning tokens
+- Manual or provider-reported cost
+- Outcomes and business value
+
+## Where it runs
+
+Use the SDK in server-side code only:
+
+- Next.js route handlers and server actions
+- Express, Fastify, Hono, and Remix actions
+- Worker queues and background jobs
+- Internal tools that call model providers
+
+Do not use the SDK in browser code. `MARGOVIA_API_KEY` is a server-side secret.
+
+## Open source boundary
+
+Margovia is a commercial product for AI gross margin reporting, budgets, customer profitability, and plan margin analysis.
+
+The SDK is open source because instrumentation should be inspectable, portable, and easy to remove or replace.

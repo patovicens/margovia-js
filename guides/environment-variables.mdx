@@ -1,0 +1,41 @@
+---
+title: Environment variables
+description: Configure the SDK with server-side environment variables.
+---
+
+## Required
+
+```env
+MARGOVIA_API_KEY=mg_live_xxx
+```
+
+The API key authenticates events sent to Margovia. Keep it server-side.
+
+## Optional
+
+```env
+MARGOVIA_BASE_URL=https://api.margovia.dev
+```
+
+The SDK defaults to `https://api.margovia.dev`.
+
+Use `MARGOVIA_BASE_URL` for local development, staging, or self-hosted API testing:
+
+```env
+MARGOVIA_BASE_URL=http://localhost:4010
+```
+
+```env
+MARGOVIA_DEBUG=1
+```
+
+Enables debug logging for skipped or failed tracking operations.
+
+## Provider keys
+
+Provider API keys are not used by Margovia directly. They are used by your app and provider SDKs:
+
+```env
+OPENAI_API_KEY=sk_xxx
+ANTHROPIC_API_KEY=sk-ant-xxx
+```

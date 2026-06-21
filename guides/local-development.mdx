@@ -1,0 +1,34 @@
+---
+title: Local development
+description: Point the SDK at a local Margovia API while developing another app.
+---
+
+Run the Margovia API locally:
+
+```bash
+pnpm dev:api
+```
+
+Then configure the app consuming the SDK:
+
+```env
+MARGOVIA_API_KEY=mg_test_xxx
+MARGOVIA_BASE_URL=http://localhost:4010
+MARGOVIA_DEBUG=1
+```
+
+This is the recommended way to dogfood the SDK from another local product, such as a demo SaaS app or internal AI feature.
+
+## Production
+
+For production, point `MARGOVIA_BASE_URL` at your deployed API:
+
+```env
+MARGOVIA_BASE_URL=https://api.margovia.dev
+```
+
+or the temporary Railway domain:
+
+```env
+MARGOVIA_BASE_URL=https://margovia-production.up.railway.app
+```

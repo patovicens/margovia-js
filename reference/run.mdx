@@ -1,0 +1,52 @@
+---
+title: MargoviaRun
+description: Methods available on a started run.
+---
+
+`MargoviaRun` is returned by `margovia.startRun(...)`.
+
+## `complete`
+
+```ts
+await run.complete({
+  outcome: "reply_generated"
+});
+```
+
+Marks the run as completed.
+
+## `fail`
+
+```ts
+await run.fail({
+  error: "Provider timed out"
+});
+```
+
+Marks the run as failed.
+
+## `trackCost`
+
+```ts
+await run.trackCost({
+  provider: "openai",
+  model: "gpt-5-mini",
+  inputTokens: 1200,
+  outputTokens: 300
+});
+```
+
+Records a cost event under this run.
+
+## `step`
+
+```ts
+await run.step("openai_reply", () =>
+  openai.chat.completions.create({
+    model: "gpt-5-mini",
+    messages
+  })
+);
+```
+
+Runs a function with run context so wrapped provider calls attach their cost events to this run.

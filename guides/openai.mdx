@@ -1,0 +1,77 @@
+---
+title: OpenAI
+description: Wrap OpenAI chat completions and capture usage automatically.
+---
+
+## Auto-track chat completions
+
+```ts
+import OpenAI from "openai";
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+const openai = margovia.wrapOpenAI(new OpenAI(), {
+  autoTrack: true,
+  defaultName: "openai.chat.completions.create"
+});
+
+await openai.chat.completions.create({
+  model: "gpt-5-mini",
+  messages,
+  metadata: {
+    margoviaName: "draft_support_reply",
+    margoviaOutcome: "message_created",
+    userId: "user_123",
+    customerId: "workspace_456",
+    customerName: "Northstar Agency",
+    customerPlan: "pro",
+    customerPlanMonthlyUsd: "99"
+  }
+});
+```
+
+The wrapper records:
+
+- `provider: "openai"`
+- model
+- prompt tokens
+- completion tokens
+- cached prompt tokens
+- reasoning tokens
+- latency
+
+## Custom run input
+
+Use `getRunInput` when your customer metadata lives outside the provider request.
+
+```ts
+const openai = margovia.wrapOpenAI(new OpenAI(), {
+  getRunInput: (_request, [body]) => ({
+    name: "support_reply",
+    customerId: body.workspace.id,
+    customerName: body.workspace.name,
+    customerPlan: { name: body.workspace.plan, monthlyUsd: 99 },
+    outcome: "reply_generated"
+  })
+});
+```
+
+## Manual run context
+
+Use `run.step(...)` when a provider call belongs to a larger workflow.
+
+```ts
+const run = await margovia.startRun({
+  name: "resolve_ticket",
+  customerId: "workspace_456"
+});
+
+await run.step("openai_reply", () =>
+  openai.chat.completions.create({
+    model: "gpt-5-mini",
+    messages
+  })
+);
+
+await run.complete({ outcome: "ticket_resolved" });
+```

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Margovia",
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#10a37f",
+    "light": "#40d6a5",
+    "dark": "#08745f"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get started",
+        "pages": ["introduction", "quickstart", "installation", "concepts"]
+      },
+      {
+        "group": "Guides",
+        "pages": ["guides/openai", "guides/anthropic", "guides/manual-tracking", "guides/environment-variables", "guides/local-development"]
+      },
+      {
+        "group": "Reference",
+        "pages": ["reference/client", "reference/run", "reference/types"]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo-light.svg",
+    "dark": "/logo-dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/patovicens/margovia-js"
+      },
+      {
+        "label": "npm",
+        "href": "https://www.npmjs.com/package/@margovia/sdk"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/patovicens/margovia-js"
+    }
+  }
+}

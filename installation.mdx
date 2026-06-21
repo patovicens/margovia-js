@@ -1,0 +1,41 @@
+---
+title: Installation
+description: Install Margovia in Node.js and server-side JavaScript runtimes.
+---
+
+## Package
+
+```bash
+pnpm add @margovia/sdk
+```
+
+The package is published as ESM and supports Node.js `20.11.0` or newer.
+
+## Peer dependencies
+
+Provider SDKs are optional peer dependencies. Install the ones your app uses:
+
+```bash
+pnpm add openai
+pnpm add @anthropic-ai/sdk
+```
+
+## Runtime setup
+
+```ts
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia({
+  apiKey: process.env.MARGOVIA_API_KEY
+});
+```
+
+You can also rely on environment variables:
+
+```ts
+const margovia = new Margovia();
+```
+
+## Server-only
+
+The SDK reads server-side secrets and uses Node APIs. Do not bundle it into client-side browser code.

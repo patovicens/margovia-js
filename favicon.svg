@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Margovia">
+  <rect width="64" height="64" rx="14" fill="#101318"/>
+  <path d="M13 43c5-22 10-31 17-31 6 0 8 7 11 20 3-10 7-18 14-18 6 0 9 7 11 28" fill="none" stroke="#f4f7f4" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M41 32c3-10 7-18 14-18 6 0 9 7 11 28" fill="none" stroke="#10a37f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

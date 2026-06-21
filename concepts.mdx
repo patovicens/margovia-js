@@ -1,0 +1,49 @@
+---
+title: Core concepts
+description: Understand runs, cost events, outcomes, and customer attribution.
+---
+
+## Run
+
+A run is one AI workflow execution, such as `support_reply`, `contract_summary`, or `generate_report`.
+
+Runs group cost events and outcomes under one business action.
+
+## Cost event
+
+A cost event records one provider call, tool call, or manually-priced operation.
+
+Cost events can include:
+
+- Provider and model
+- Input and output tokens
+- Cached input tokens
+- Cache creation tokens
+- Reasoning tokens
+- Manual `costUsd`
+- Latency and status
+
+## Outcome
+
+An outcome records what the run produced or what business value it created.
+
+Examples:
+
+- `reply_generated`
+- `summary_created`
+- `lead_qualified`
+- `report_exported`
+
+## Customer attribution
+
+Margovia works best when every AI workflow includes customer and plan context:
+
+```ts
+{
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  customerPlan: { name: "pro", monthlyUsd: 99 }
+}
+```
+
+This lets Margovia calculate cost and margin by customer, plan, and workflow.

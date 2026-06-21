@@ -1,0 +1,72 @@
+---
+title: Quickstart
+description: Install the SDK and track your first AI call.
+---
+
+## Install
+
+<CodeGroup>
+
+```bash npm
+npm install @margovia/sdk
+```
+
+```bash pnpm
+pnpm add @margovia/sdk
+```
+
+```bash yarn
+yarn add @margovia/sdk
+```
+
+</CodeGroup>
+
+## Configure
+
+```env
+MARGOVIA_API_KEY=mg_live_xxx
+```
+
+For local API testing, point the SDK at your local or Railway API:
+
+```env
+MARGOVIA_BASE_URL=http://localhost:4010
+```
+
+## Track an OpenAI call
+
+```ts
+import OpenAI from "openai";
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+const openai = margovia.wrapOpenAI(new OpenAI(), { autoTrack: true });
+
+await openai.chat.completions.create({
+  model: "gpt-5-mini",
+  messages: [
+    { role: "system", content: "Write concise customer support replies." },
+    { role: "user", content: "Help me respond to this ticket." }
+  ],
+  metadata: {
+    margoviaName: "support_reply",
+    margoviaOutcome: "reply_generated",
+    customerId: "workspace_123",
+    customerName: "Northstar Agency",
+    customerPlan: "pro",
+    customerPlanMonthlyUsd: "99"
+  }
+});
+```
+
+With `autoTrack: true`, the wrapper starts a Margovia run, records the cost event from provider usage, and completes the run after the provider call succeeds.
+
+## Verify
+
+Open Margovia and look for a run named:
+
+```text
+support_reply
+```
+
+If no API key is configured, the SDK becomes a no-op and logs only when `MARGOVIA_DEBUG=1`.

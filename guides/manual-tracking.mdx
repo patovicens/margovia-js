@@ -1,0 +1,61 @@
+---
+title: Manual tracking
+description: Track custom providers, tool calls, and multi-step workflows.
+---
+
+Use manual runs when you need explicit control or when the provider is not wrapped by the SDK.
+
+## Start and complete a run
+
+```ts
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+
+const run = await margovia.startRun({
+  name: "generate_report",
+  userId: "user_123",
+  customerId: "client_123",
+  customerName: "Acme Inc.",
+  customerPlan: { name: "enterprise", monthlyUsd: 499 },
+  properties: {
+    reportType: "weekly_margin"
+  }
+});
+
+await run.trackCost({
+  provider: "serpapi",
+  label: "search_tool",
+  costUsd: 0.01,
+  status: "success"
+});
+
+await run.complete({ outcome: "report_generated" });
+```
+
+## Track failures
+
+```ts
+try {
+  await doWork();
+  await run.complete({ outcome: "done" });
+} catch (error) {
+  await run.fail({
+    error: error instanceof Error ? error.message : "Unknown error"
+  });
+  throw error;
+}
+```
+
+## Use `track`
+
+`track` wraps a function, opens a run, and completes or fails it automatically.
+
+```ts
+const result = await margovia.track({
+  name: "generate_report",
+  customerId: "client_123",
+  outcome: "report_generated",
+  fn: async () => generateReport()
+});
+```

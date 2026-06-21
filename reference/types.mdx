@@ -1,0 +1,74 @@
+---
+title: Types
+description: Public TypeScript input types exported by the SDK.
+---
+
+## `StartRunInput`
+
+```ts
+type StartRunInput = {
+  name: string;
+  userId?: string;
+  customerId?: string;
+  customerName?: string;
+  customerPlan?: string | { name: string; monthlyUsd: number };
+  properties?: Record<string, unknown>;
+  budgetUsd?: number;
+  startedAt?: string;
+};
+```
+
+## `TrackCostInput`
+
+```ts
+type TrackCostInput = {
+  runId: string;
+  provider: string;
+  label?: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheCreationInputTokens?: number;
+  cacheCreationInputTokens5m?: number;
+  cacheCreationInputTokens1h?: number;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+  costUsd?: number;
+  latencyMs?: number;
+  status?: string;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+};
+```
+
+## `TrackOutcomeInput`
+
+```ts
+type TrackOutcomeInput = {
+  runId: string;
+  outcome: string;
+  valueUsd?: number;
+  metadata?: Record<string, unknown>;
+  createdAt?: string;
+};
+```
+
+## `CompleteRunInput`
+
+```ts
+type CompleteRunInput = {
+  outcome?: string;
+  metadata?: Record<string, unknown>;
+  completedAt?: string;
+};
+```
+
+## `FailRunInput`
+
+```ts
+type FailRunInput = {
+  error?: string;
+  metadata?: Record<string, unknown>;
+  completedAt?: string;
+};
+```

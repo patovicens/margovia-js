@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 36" role="img" aria-label="Margovia">
+  <rect x="0" y="2" width="32" height="32" rx="8" fill="#101318"/>
+  <path d="M7 24c3-12 6-17 10-17s5 4 7 11c2-6 5-10 9-10 3 0 5 4 6 16" fill="none" stroke="#f4f7f4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 18c2-6 5-10 9-10 3 0 5 4 6 16" fill="none" stroke="#10a37f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="44" y="24" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="650" fill="#101318">Margovia</text>
+</svg>

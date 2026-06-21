@@ -1,0 +1,80 @@
+---
+title: Margovia client
+description: Constructor and methods on the Margovia SDK client.
+---
+
+## Constructor
+
+```ts
+new Margovia(options?: MargoviaOptions)
+```
+
+### Options
+
+```ts
+type MargoviaOptions = {
+  apiKey?: string;
+  baseUrl?: string;
+  timeoutMs?: number;
+  debug?: boolean;
+};
+```
+
+If omitted, the client reads:
+
+- `MARGOVIA_API_KEY`
+- `MARGOVIA_BASE_URL`
+- `MARGOVIA_DEBUG`
+
+## `startRun`
+
+```ts
+await margovia.startRun(input: StartRunInput)
+```
+
+Starts a run and returns a `MargoviaRun`.
+
+## `track`
+
+```ts
+await margovia.track({
+  name: "support_reply",
+  customerId: "workspace_123",
+  outcome: "reply_generated",
+  fn: async () => doWork()
+});
+```
+
+Wraps a function in a run. The run is completed on success and failed on error.
+
+## `wrapOpenAI`
+
+```ts
+const openai = margovia.wrapOpenAI(client, options);
+```
+
+Wraps `client.chat.completions.create`.
+
+## `wrapAnthropic`
+
+```ts
+const anthropic = margovia.wrapAnthropic(client, options);
+```
+
+Wraps `client.messages.create`.
+
+## `trackCost`
+
+```ts
+await margovia.trackCost(input: TrackCostInput)
+```
+
+Records a cost event for an existing run.
+
+## `trackOutcome`
+
+```ts
+await margovia.trackOutcome(input: TrackOutcomeInput)
+```
+
+Records an outcome for an existing run.
