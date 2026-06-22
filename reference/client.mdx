@@ -26,6 +26,8 @@ If omitted, the client reads:
 - `MARGOVIA_BASE_URL`
 - `MARGOVIA_DEBUG`
 
+Installing the SDK alone sends nothing. Without `MARGOVIA_API_KEY`, the client is a no-op. With `MARGOVIA_API_KEY`, it sends to Margovia Cloud unless `baseUrl` or `MARGOVIA_BASE_URL` points at a self-hosted or compatible receiver.
+
 ## `openai`
 
 ```ts

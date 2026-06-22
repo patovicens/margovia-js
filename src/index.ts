@@ -135,6 +135,35 @@ type ProviderRequestLike = {
   metadata?: unknown;
 };
 
+type ProviderCreateResponse<TCreate, TRequest, TFallback> =
+  TCreate extends {
+    (request: infer TFirstRequest, ...args: any[]): PromiseLike<infer TFirstResponse>;
+    (request: infer TSecondRequest, ...args: any[]): PromiseLike<infer TSecondResponse>;
+    (request: infer TThirdRequest, ...args: any[]): PromiseLike<infer TThirdResponse>;
+  }
+    ? TRequest extends TFirstRequest
+      ? TFirstResponse
+      : TRequest extends TSecondRequest
+        ? TSecondResponse
+        : TRequest extends TThirdRequest
+          ? TThirdResponse
+          : TFallback
+    : TCreate extends {
+        (request: infer TFirstRequest, ...args: any[]): PromiseLike<infer TFirstResponse>;
+        (request: infer TSecondRequest, ...args: any[]): PromiseLike<infer TSecondResponse>;
+      }
+      ? TRequest extends TFirstRequest
+        ? TFirstResponse
+        : TRequest extends TSecondRequest
+          ? TSecondResponse
+          : TFallback
+      : TCreate extends (request: TRequest, ...args: any[]) => PromiseLike<infer TResponse>
+        ? TResponse
+        : TFallback;
+
+type OpenAICreateMethod<TClient extends OpenAIClientLike> = NonNullable<NonNullable<TClient["chat"]>["completions"]>["create"];
+type AnthropicCreateMethod<TClient extends AnthropicClientLike> = NonNullable<TClient["messages"]>["create"];
+
 type OpenAICreateResponse<TClient extends OpenAIClientLike> =
   NonNullable<TClient["chat"]>["completions"] extends { create?: (...args: any[]) => PromiseLike<infer TResponse> } ? TResponse : OpenAIResponseLike;
 
@@ -144,14 +173,14 @@ type AnthropicCreateResponse<TClient extends AnthropicClientLike> =
 type MargoviaOpenAIAdapter<TClient extends OpenAIClientLike> = {
   chat: {
     completions: {
-      create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<OpenAICreateResponse<TClient>>;
+      create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<ProviderCreateResponse<OpenAICreateMethod<TClient>, TRequest, OpenAICreateResponse<TClient>>>;
     };
   };
 };
 
 type MargoviaAnthropicAdapter<TClient extends AnthropicClientLike> = {
   messages: {
-    create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<AnthropicCreateResponse<TClient>>;
+    create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<ProviderCreateResponse<AnthropicCreateMethod<TClient>, TRequest, AnthropicCreateResponse<TClient>>>;
   };
 };
 
@@ -165,7 +194,7 @@ type WrapOptions<TRequest> = {
 type OpenAIClientLike = {
   chat?: {
     completions?: {
-      create?: (...args: any[]) => PromiseLike<OpenAIResponseLike>;
+      create?: (...args: any[]) => PromiseLike<any>;
     };
   };
 };
@@ -187,7 +216,7 @@ type OpenAIResponseLike = {
 
 type AnthropicClientLike = {
   messages?: {
-    create?: (...args: any[]) => PromiseLike<AnthropicResponseLike>;
+    create?: (...args: any[]) => PromiseLike<any>;
   };
 };
 
@@ -201,7 +230,7 @@ type AnthropicResponseLike = {
     cache_creation?: {
       ephemeral_5m_input_tokens?: number | null;
       ephemeral_1h_input_tokens?: number | null;
-    };
+    } | null;
   };
 };
 
@@ -388,7 +417,7 @@ export class Margovia {
               ...runInput,
               request,
               fn: () => create.call(client.chat!.completions, request)
-            }) as Promise<OpenAICreateResponse<TClient>>;
+            }) as Promise<ProviderCreateResponse<OpenAICreateMethod<TClient>, TRequest, OpenAICreateResponse<TClient>>>;
           }
         }
       }
@@ -495,15 +524,15 @@ export class Margovia {
 
     return {
       messages: {
-          create: async <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => {
-            const { request, ...runInput } = input;
-            return this.trackAnthropic({
-              ...runInput,
-              request,
-              fn: () => create.call(client.messages!, request)
-            }) as Promise<AnthropicCreateResponse<TClient>>;
-          }
+        create: async <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => {
+          const { request, ...runInput } = input;
+          return this.trackAnthropic({
+            ...runInput,
+            request,
+            fn: () => create.call(client.messages!, request)
+          }) as Promise<ProviderCreateResponse<AnthropicCreateMethod<TClient>, TRequest, AnthropicCreateResponse<TClient>>>;
         }
+      }
     };
   }
 

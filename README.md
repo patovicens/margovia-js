@@ -18,7 +18,9 @@ npm install @margovia/sdk
 MARGOVIA_API_KEY=mg_live_xxx
 ```
 
-The SDK sends events to Margovia's hosted API by default. Set `MARGOVIA_BASE_URL` only for self-hosted or local API testing.
+Installing the SDK alone sends nothing. When `MARGOVIA_API_KEY` is configured, the SDK sends events to Margovia Cloud at `https://api.margovia.com` by default.
+
+Set `MARGOVIA_BASE_URL` only if you self-host Margovia, run a compatible receiver, or test against a local API.
 
 ## Why open source?
 

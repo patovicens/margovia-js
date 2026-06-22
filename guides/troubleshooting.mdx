@@ -140,11 +140,7 @@ await run.trackCost({
 
 ## Local development hits the wrong API
 
-The SDK defaults to:
-
-```env
-MARGOVIA_BASE_URL=https://api.margovia.com
-```
+With `MARGOVIA_API_KEY` configured and no `MARGOVIA_BASE_URL`, the SDK sends to Margovia Cloud by default.
 
 For a local API:
 
