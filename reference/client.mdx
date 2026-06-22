@@ -26,6 +26,45 @@ If omitted, the client reads:
 - `MARGOVIA_BASE_URL`
 - `MARGOVIA_DEBUG`
 
+## `openai`
+
+```ts
+const openai = margovia.openai(client);
+
+await openai.chat.completions.create({
+  name: "support_reply",
+  customerId: "workspace_123",
+  request: {
+    model: "gpt-5-mini",
+    messages
+  }
+});
+```
+
+Creates a tracked OpenAI adapter. The adapter starts a run, calls `client.chat.completions.create(request)`, records cost from the response usage, and completes or fails the run.
+
+Use this for the simplest one-call OpenAI integration.
+
+## `anthropic`
+
+```ts
+const anthropic = margovia.anthropic(client);
+
+await anthropic.messages.create({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  request: {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 800,
+    messages
+  }
+});
+```
+
+Creates a tracked Anthropic adapter. The adapter starts a run, calls `client.messages.create(request)`, records cost from the response usage, and completes or fails the run.
+
+Use this for the simplest one-call Anthropic integration.
+
 ## `wrapOpenAI`
 
 ```ts
@@ -89,7 +128,7 @@ await margovia.track({
 
 Wraps a function in a run. The run is completed on success and failed on error.
 
-`track` does not extract provider token usage by itself. Use wrapped provider clients inside `fn`, call `trackOpenAI(...)` or `trackAnthropic(...)`, or manually report cost.
+`track` does not extract provider token usage by itself. Use tracked or wrapped provider clients inside `fn`, call `trackOpenAI(...)` or `trackAnthropic(...)`, or manually report cost.
 
 ## `canRun`
 

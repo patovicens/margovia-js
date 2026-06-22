@@ -89,7 +89,7 @@ type RunContext = {
 
 type TrackOptions<T> = StartRunInput & {
   outcome?: string;
-  fn: () => Promise<T> | T;
+  fn: () => PromiseLike<T> | T;
 };
 
 type AutoRunInput = StartRunInput & {
@@ -123,7 +123,36 @@ type GuardrailCheckResult = {
 
 type TrackProviderInput<TRequest, TResponse> = AutoRunInput & {
   request?: TRequest;
-  fn: () => Promise<TResponse> | TResponse;
+  fn: () => PromiseLike<TResponse> | TResponse;
+};
+
+type TrackedProviderCallInput<TRequest> = AutoRunInput & {
+  request: TRequest;
+};
+
+type ProviderRequestLike = {
+  model?: string | null;
+  metadata?: unknown;
+};
+
+type OpenAICreateResponse<TClient extends OpenAIClientLike> =
+  NonNullable<TClient["chat"]>["completions"] extends { create?: (...args: any[]) => PromiseLike<infer TResponse> } ? TResponse : OpenAIResponseLike;
+
+type AnthropicCreateResponse<TClient extends AnthropicClientLike> =
+  NonNullable<TClient["messages"]> extends { create?: (...args: any[]) => PromiseLike<infer TResponse> } ? TResponse : AnthropicResponseLike;
+
+type MargoviaOpenAIAdapter<TClient extends OpenAIClientLike> = {
+  chat: {
+    completions: {
+      create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<OpenAICreateResponse<TClient>>;
+    };
+  };
+};
+
+type MargoviaAnthropicAdapter<TClient extends AnthropicClientLike> = {
+  messages: {
+    create: <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => Promise<AnthropicCreateResponse<TClient>>;
+  };
 };
 
 type WrapOptions<TRequest> = {
@@ -136,47 +165,47 @@ type WrapOptions<TRequest> = {
 type OpenAIClientLike = {
   chat?: {
     completions?: {
-      create?: (...args: unknown[]) => Promise<OpenAIResponseLike>;
+      create?: (...args: any[]) => PromiseLike<OpenAIResponseLike>;
     };
   };
 };
 
 type OpenAIResponseLike = {
-  model?: string;
+  model?: string | null;
   usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
+    prompt_tokens?: number | null;
+    completion_tokens?: number | null;
+    total_tokens?: number | null;
     prompt_tokens_details?: {
-      cached_tokens?: number;
+      cached_tokens?: number | null;
     };
     completion_tokens_details?: {
-      reasoning_tokens?: number;
+      reasoning_tokens?: number | null;
     };
   };
 };
 
 type AnthropicClientLike = {
   messages?: {
-    create?: (...args: unknown[]) => Promise<AnthropicResponseLike>;
+    create?: (...args: any[]) => PromiseLike<AnthropicResponseLike>;
   };
 };
 
 type AnthropicResponseLike = {
-  model?: string;
+  model?: string | null;
   usage?: {
-    input_tokens?: number;
-    output_tokens?: number;
-    cache_creation_input_tokens?: number;
-    cache_read_input_tokens?: number;
+    input_tokens?: number | null;
+    output_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+    cache_read_input_tokens?: number | null;
     cache_creation?: {
-      ephemeral_5m_input_tokens?: number;
-      ephemeral_1h_input_tokens?: number;
+      ephemeral_5m_input_tokens?: number | null;
+      ephemeral_1h_input_tokens?: number | null;
     };
   };
 };
 
-function resolveRunInput<TRequest extends { model?: string; metadata?: Record<string, unknown> }>(
+function resolveRunInput<TRequest extends ProviderRequestLike>(
   options: WrapOptions<TRequest>,
   request: TRequest | undefined,
   args: unknown[],
@@ -194,7 +223,7 @@ function resolveRunInput<TRequest extends { model?: string; metadata?: Record<st
     return undefined;
   }
 
-  const metadata = request?.metadata;
+  const metadata = metadataRecord(request?.metadata);
   const name = metadataString(metadata, "margoviaName") ?? options.defaultName ?? fallbackName;
   return {
     name,
@@ -207,6 +236,18 @@ function resolveRunInput<TRequest extends { model?: string; metadata?: Record<st
     },
     outcome: metadataString(metadata, "margoviaOutcome") ?? fallbackOutcome
   };
+}
+
+function metadataRecord(metadata: unknown): Record<string, unknown> | undefined {
+  return typeof metadata === "object" && metadata !== null ? metadata as Record<string, unknown> : undefined;
+}
+
+function optionalNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function optionalString(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 function metadataString(metadata: Record<string, unknown> | undefined, key: string) {
@@ -332,7 +373,29 @@ export class Margovia {
     });
   }
 
-  wrapOpenAI<TClient extends OpenAIClientLike>(client: TClient, options: WrapOptions<{ model?: string; metadata?: Record<string, unknown> }> = {}): TClient {
+  openai<TClient extends OpenAIClientLike>(client: TClient): MargoviaOpenAIAdapter<TClient> {
+    const create = client.chat?.completions?.create;
+    if (!create || typeof create !== "function") {
+      throw new Error("OpenAI client does not expose chat.completions.create");
+    }
+
+    return {
+      chat: {
+        completions: {
+          create: async <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => {
+            const { request, ...runInput } = input;
+            return this.trackOpenAI({
+              ...runInput,
+              request,
+              fn: () => create.call(client.chat!.completions, request)
+            }) as Promise<OpenAICreateResponse<TClient>>;
+          }
+        }
+      }
+    };
+  }
+
+  wrapOpenAI<TClient extends OpenAIClientLike>(client: TClient, options: WrapOptions<ProviderRequestLike> = {}): TClient {
     const create = client.chat?.completions?.create;
     if (!create || typeof create !== "function") {
       this.log("OpenAI client does not expose chat.completions.create; returning original client.");
@@ -343,7 +406,7 @@ export class Margovia {
     client.chat!.completions!.create = async function wrappedCreate(...args: unknown[]) {
       const context = agentCost.runContext.getStore();
       const runId = context?.runId;
-      const request = args[0] as { model?: string; metadata?: Record<string, unknown> } | undefined;
+      const request = args[0] as ProviderRequestLike | undefined;
 
       if (runId) {
         const started = Date.now();
@@ -392,15 +455,22 @@ export class Margovia {
     return client;
   }
 
-  async trackOpenAI<TResponse extends OpenAIResponseLike>(input: TrackProviderInput<{ model?: string; metadata?: Record<string, unknown> }, TResponse>) {
+  async trackOpenAI<TResponse>(input: TrackProviderInput<ProviderRequestLike, TResponse>): Promise<TResponse> {
     const { fn, outcome, request, ...runInput } = input;
-    const run = await this.startRun(runInput);
+    let run: MargoviaRun;
+    try {
+      run = await this.startRun(runInput);
+    } catch (error) {
+      this.log(`Failed to start OpenAI run: ${error instanceof Error ? error.message : String(error)}`);
+      return Promise.resolve(fn());
+    }
+
     const started = Date.now();
 
     try {
       const response = await this.runContext.run({ runId: run.id }, () => Promise.resolve(fn()));
       try {
-        await this.trackOpenAICost(run.id, response, request, Date.now() - started, undefined, {
+        await this.trackOpenAICost(run.id, response as unknown as OpenAIResponseLike, request, Date.now() - started, undefined, {
           completeRun: true,
           outcome
         }, false);
@@ -417,7 +487,27 @@ export class Margovia {
     }
   }
 
-  wrapAnthropic<TClient extends AnthropicClientLike>(client: TClient, options: WrapOptions<{ model?: string; metadata?: Record<string, unknown> }> = {}): TClient {
+  anthropic<TClient extends AnthropicClientLike>(client: TClient): MargoviaAnthropicAdapter<TClient> {
+    const create = client.messages?.create;
+    if (!create || typeof create !== "function") {
+      throw new Error("Anthropic client does not expose messages.create");
+    }
+
+    return {
+      messages: {
+          create: async <TRequest extends ProviderRequestLike>(input: TrackedProviderCallInput<TRequest>) => {
+            const { request, ...runInput } = input;
+            return this.trackAnthropic({
+              ...runInput,
+              request,
+              fn: () => create.call(client.messages!, request)
+            }) as Promise<AnthropicCreateResponse<TClient>>;
+          }
+        }
+    };
+  }
+
+  wrapAnthropic<TClient extends AnthropicClientLike>(client: TClient, options: WrapOptions<ProviderRequestLike> = {}): TClient {
     const create = client.messages?.create;
     if (!create || typeof create !== "function") {
       this.log("Anthropic client does not expose messages.create; returning original client.");
@@ -428,7 +518,7 @@ export class Margovia {
     client.messages!.create = async function wrappedCreate(...args: unknown[]) {
       const context = margovia.runContext.getStore();
       const runId = context?.runId;
-      const request = args[0] as { model?: string; metadata?: Record<string, unknown> } | undefined;
+      const request = args[0] as ProviderRequestLike | undefined;
 
       if (runId) {
         const started = Date.now();
@@ -477,15 +567,22 @@ export class Margovia {
     return client;
   }
 
-  async trackAnthropic<TResponse extends AnthropicResponseLike>(input: TrackProviderInput<{ model?: string; metadata?: Record<string, unknown> }, TResponse>) {
+  async trackAnthropic<TResponse>(input: TrackProviderInput<ProviderRequestLike, TResponse>): Promise<TResponse> {
     const { fn, outcome, request, ...runInput } = input;
-    const run = await this.startRun(runInput);
+    let run: MargoviaRun;
+    try {
+      run = await this.startRun(runInput);
+    } catch (error) {
+      this.log(`Failed to start Anthropic run: ${error instanceof Error ? error.message : String(error)}`);
+      return Promise.resolve(fn());
+    }
+
     const started = Date.now();
 
     try {
       const response = await this.runContext.run({ runId: run.id }, () => Promise.resolve(fn()));
       try {
-        await this.trackAnthropicCost(run.id, response, request, Date.now() - started, undefined, {
+        await this.trackAnthropicCost(run.id, response as unknown as AnthropicResponseLike, request, Date.now() - started, undefined, {
           completeRun: true,
           outcome
         }, false);
@@ -505,7 +602,7 @@ export class Margovia {
   private async trackOpenAICost(
     runId: string,
     response: OpenAIResponseLike,
-    request: { model?: string; metadata?: Record<string, unknown> } | undefined,
+    request: ProviderRequestLike | undefined,
     latencyMs: number,
     label?: string,
     terminal?: Pick<TrackCostInput, "completeRun" | "outcome">,
@@ -516,11 +613,11 @@ export class Margovia {
       runId,
       provider: "openai",
       label,
-      model: response.model ?? request?.model,
-      inputTokens: usage?.prompt_tokens,
-      outputTokens: usage?.completion_tokens,
-      cachedInputTokens: usage?.prompt_tokens_details?.cached_tokens,
-      reasoningTokens: usage?.completion_tokens_details?.reasoning_tokens,
+      model: optionalString(response.model) ?? optionalString(request?.model),
+      inputTokens: optionalNumber(usage?.prompt_tokens),
+      outputTokens: optionalNumber(usage?.completion_tokens),
+      cachedInputTokens: optionalNumber(usage?.prompt_tokens_details?.cached_tokens),
+      reasoningTokens: optionalNumber(usage?.completion_tokens_details?.reasoning_tokens),
       latencyMs,
       status: "success",
       ...terminal
@@ -558,7 +655,7 @@ export class Margovia {
 
   }
 
-  async runStep<T>(runId: string, label: string, fn: () => Promise<T> | T) {
+  async runStep<T>(runId: string, label: string, fn: () => PromiseLike<T> | T) {
     return this.runContext.run({ runId, label }, () => Promise.resolve(fn()));
   }
 
@@ -573,7 +670,7 @@ export class Margovia {
   private async trackAnthropicCost(
     runId: string,
     response: AnthropicResponseLike,
-    request: { model?: string; metadata?: Record<string, unknown> } | undefined,
+    request: ProviderRequestLike | undefined,
     latencyMs: number,
     label?: string,
     terminal?: Pick<TrackCostInput, "completeRun" | "outcome">,
@@ -584,13 +681,13 @@ export class Margovia {
       runId,
       provider: "anthropic",
       label,
-      model: response.model ?? request?.model,
-      inputTokens: usage?.input_tokens,
-      outputTokens: usage?.output_tokens,
-      cacheCreationInputTokens: usage?.cache_creation_input_tokens,
-      cacheCreationInputTokens5m: usage?.cache_creation?.ephemeral_5m_input_tokens,
-      cacheCreationInputTokens1h: usage?.cache_creation?.ephemeral_1h_input_tokens,
-      cachedInputTokens: usage?.cache_read_input_tokens,
+      model: optionalString(response.model) ?? optionalString(request?.model),
+      inputTokens: optionalNumber(usage?.input_tokens),
+      outputTokens: optionalNumber(usage?.output_tokens),
+      cacheCreationInputTokens: optionalNumber(usage?.cache_creation_input_tokens),
+      cacheCreationInputTokens5m: optionalNumber(usage?.cache_creation?.ephemeral_5m_input_tokens),
+      cacheCreationInputTokens1h: optionalNumber(usage?.cache_creation?.ephemeral_1h_input_tokens),
+      cachedInputTokens: optionalNumber(usage?.cache_read_input_tokens),
       latencyMs,
       status: "success",
       ...terminal
@@ -723,9 +820,9 @@ export class MargoviaRun {
     await this.agentCost.trackCost({ ...input, runId: this.id });
   }
 
-  async step<T>(label: string, fn: () => Promise<T> | T) {
+  async step<T>(label: string, fn: () => PromiseLike<T> | T) {
     return this.agentCost.runStep(this.id, label, fn);
   }
 }
 
-export type { CompleteRunInput, CustomerInput, CustomerPlanInput, FailRunInput, GuardrailCheckInput, GuardrailCheckResult, MargoviaOptions, StartRunInput, TrackCostInput, TrackOptions, TrackOutcomeInput, TrackProviderInput, UserInput };
+export type { CompleteRunInput, CustomerInput, CustomerPlanInput, FailRunInput, GuardrailCheckInput, GuardrailCheckResult, MargoviaAnthropicAdapter, MargoviaOpenAIAdapter, MargoviaOptions, StartRunInput, TrackCostInput, TrackOptions, TrackOutcomeInput, TrackProviderInput, TrackedProviderCallInput, UserInput };

@@ -5,7 +5,7 @@ description: Track custom providers, tool calls, and multi-step workflows.
 
 Use manual runs when you need explicit control or when the provider is not wrapped by the SDK.
 
-For normal OpenAI or Anthropic calls, prefer `wrapOpenAI(...)`, `wrapAnthropic(...)`, `trackOpenAI(...)`, or `trackAnthropic(...)`. Those APIs can read provider usage and report cost automatically.
+For normal OpenAI or Anthropic calls, prefer `margovia.openai(client)` or `margovia.anthropic(client)`. Those adapters can read provider usage and report cost automatically. Use wrappers or explicit provider helpers when you need to migrate existing call sites.
 
 ## Start and complete a run
 

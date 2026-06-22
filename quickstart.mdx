@@ -35,7 +35,7 @@ MARGOVIA_BASE_URL=http://localhost:4010
 
 ## Track your first OpenAI call
 
-The fastest path is `wrapOpenAI(..., { autoTrack: true })`.
+The fastest path is `margovia.openai(client)`.
 
 This makes one OpenAI call become one Margovia run with one cost event.
 
@@ -44,26 +44,25 @@ import OpenAI from "openai";
 import { Margovia } from "@margovia/sdk";
 
 const margovia = new Margovia();
-const openai = margovia.wrapOpenAI(new OpenAI(), { autoTrack: true });
+const openai = margovia.openai(new OpenAI());
 
 await openai.chat.completions.create({
-  model: "gpt-5-mini",
-  messages: [
-    { role: "system", content: "Write concise customer support replies." },
-    { role: "user", content: "Help me respond to this ticket." }
-  ],
-  metadata: {
-    margoviaName: "support_reply",
-    margoviaOutcome: "reply_generated",
-    customerId: "workspace_123",
-    customerName: "Northstar Agency",
-    customerPlan: "pro",
-    customerPlanMonthlyUsd: "99"
+  name: "support_reply",
+  outcome: "reply_generated",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  customerPlan: { name: "pro", monthlyUsd: 99 },
+  request: {
+    model: "gpt-5-mini",
+    messages: [
+      { role: "system", content: "Write concise customer support replies." },
+      { role: "user", content: "Help me respond to this ticket." }
+    ]
   }
 });
 ```
 
-With `autoTrack: true`, the wrapper starts a Margovia run, records the cost event from provider usage, and completes the run after the provider call succeeds.
+The adapter starts a Margovia run, calls OpenAI, records the cost event from provider usage, and completes the run after the provider call succeeds.
 
 ## Track your first Anthropic call
 
@@ -72,21 +71,20 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Margovia } from "@margovia/sdk";
 
 const margovia = new Margovia();
-const anthropic = margovia.wrapAnthropic(new Anthropic(), { autoTrack: true });
+const anthropic = margovia.anthropic(new Anthropic());
 
 await anthropic.messages.create({
-  model: "claude-sonnet-4-20250514",
-  max_tokens: 800,
-  messages: [
-    { role: "user", content: "Score this tweet for likely engagement." }
-  ],
-  metadata: {
-    margoviaName: "score_tweet",
-    margoviaOutcome: "tweet_scored",
-    customerId: "workspace_123",
-    customerName: "Northstar Agency",
-    customerPlan: "pro",
-    customerPlanMonthlyUsd: "99"
+  name: "score_tweet",
+  outcome: "tweet_scored",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  customerPlan: { name: "pro", monthlyUsd: 99 },
+  request: {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 800,
+    messages: [
+      { role: "user", content: "Score this tweet for likely engagement." }
+    ]
   }
 });
 ```
@@ -140,6 +138,30 @@ await margovia.track({
 ```
 
 That bad example creates a run, but if `anthropic` is not wrapped then Margovia receives no token usage and no cost.
+
+## If you use another provider
+
+OpenAI and Anthropic have first-class helpers because the SDK knows how to read their usage fields. For Gemini, Cohere, custom models, search APIs, or internal tools, use manual tracking and send either tokens or `costUsd`.
+
+```ts
+const run = await margovia.startRun({
+  name: "generate_answer",
+  customerId: "workspace_123"
+});
+
+const response = await gemini.models.generateContent(...);
+
+await run.trackCost({
+  provider: "gemini",
+  model: "gemini-2.5-pro",
+  inputTokens: response.usageMetadata?.promptTokenCount,
+  outputTokens: response.usageMetadata?.candidatesTokenCount
+});
+
+await run.complete({ outcome: "answer_generated" });
+```
+
+See [Integration patterns](/guides/integration-patterns) for unsupported provider examples.
 
 ## Verify
 

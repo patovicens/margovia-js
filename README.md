@@ -68,37 +68,39 @@ Use the SDK based on what you are tracking:
 
 | Situation | Use |
 | --- | --- |
-| One OpenAI or Anthropic call should become one tracked run | `wrapOpenAI(..., { autoTrack: true })` or `wrapAnthropic(..., { autoTrack: true })` |
+| One OpenAI or Anthropic call should become one tracked run | `margovia.openai(client)` or `margovia.anthropic(client)` |
+| You want to patch an existing provider client | `wrapOpenAI(..., { autoTrack: true })` or `wrapAnthropic(..., { autoTrack: true })` |
 | You already have your own provider helper function | `trackOpenAI(...)` or `trackAnthropic(...)` |
 | One product workflow has several provider/tool calls | `margovia.track(...)` around wrapped clients or manual cost calls |
 | You use another paid API or custom provider | `startRun(...)`, `run.trackCost(...)`, `run.complete(...)` |
 
 `margovia.track(...)` is a workflow wrapper. It does not read provider token usage by itself. For AI cost tracking, use provider wrappers/helpers or manually report cost.
 
-## Easiest: auto-track OpenAI or Anthropic
+## Easiest: tracked provider adapter
 
-Wrap the provider client and pass Margovia metadata in the provider request.
+Create a tracked provider adapter once, then call it with Margovia run fields and the real provider request.
 
 ```ts
 import OpenAI from "openai";
 import { Margovia } from "@margovia/sdk";
 
 const margovia = new Margovia({ apiKey: process.env.MARGOVIA_API_KEY });
-const openai = margovia.wrapOpenAI(new OpenAI(), { autoTrack: true });
+const openai = margovia.openai(new OpenAI());
 
 await openai.chat.completions.create({
-  model: "gpt-5-mini",
-  messages: buildSupportMessages(ticket),
-  metadata: {
-    margoviaName: "support_reply",
-    margoviaOutcome: "reply_generated",
-    customerId: `workspace_${workspace.id}`,
-    customerName: workspace.name,
-    customerPlan: "pro",
-    customerPlanMonthlyUsd: "99"
+  name: "support_reply",
+  customerId: `workspace_${workspace.id}`,
+  customerName: workspace.name,
+  customerPlan: "pro",
+  outcome: "reply_generated",
+  request: {
+    model: "gpt-5-mini",
+    messages: buildSupportMessages(ticket)
   }
 });
 ```
+
+The adapter starts the run, calls OpenAI, reads `response.usage`, records cost, and completes or fails the run.
 
 ## Explicit: provider helper
 

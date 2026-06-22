@@ -10,7 +10,7 @@ Check these first:
 - `MARGOVIA_API_KEY` is set in the server process
 - The SDK runs in backend code, not browser code
 - The API key belongs to the Margovia project you are viewing
-- Your provider call actually executes after the wrapper is created
+- Your provider call actually executes through the tracked adapter, wrapper, or provider helper
 - `MARGOVIA_BASE_URL` is not accidentally pointing at localhost in production
 
 Enable debug logs temporarily:
@@ -23,7 +23,7 @@ Without `MARGOVIA_API_KEY`, the SDK becomes a no-op and does not send events.
 
 ## Runs stay running
 
-Wrapped provider calls and `margovia.track(...)` complete or fail runs automatically.
+Tracked adapters, wrapped provider calls, provider helpers, and `margovia.track(...)` complete or fail runs automatically.
 
 Manual runs do not. If you call `startRun(...)`, you must eventually call one of:
 
@@ -55,7 +55,19 @@ await margovia.track({
 
 If `anthropic` is not wrapped, Margovia cannot read token usage.
 
-Fix with a provider helper:
+Fix with the tracked adapter:
+
+```ts
+const anthropic = margovia.anthropic(new Anthropic());
+
+await anthropic.messages.create({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  request: params
+});
+```
+
+Or fix with a provider helper:
 
 ```ts
 await margovia.trackAnthropic({

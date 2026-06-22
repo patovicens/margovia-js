@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { Margovia } from "@margovia/sdk";
 
 const margovia = new Margovia({ apiKey: process.env.MARGOVIA_API_KEY });
-const openai = margovia.wrapOpenAI(new OpenAI(), { autoTrack: true });
+const openai = margovia.openai(new OpenAI());
 
 const plans = {
   free: { name: "free", monthlyUsd: 0 },
@@ -16,15 +16,14 @@ export async function POST(request: Request) {
   const customerPlan = plans[workspace.plan];
 
   const response = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    messages: buildSupportMessages(body.ticket),
-    metadata: {
-      margoviaName: "support_reply",
-      margoviaOutcome: "reply_generated",
-      customerId: `workspace_${workspace.id}`,
-      customerName: workspace.name,
-      customerPlan: customerPlan.name,
-      customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
+    name: "support_reply",
+    customerId: `workspace_${workspace.id}`,
+    customerName: workspace.name,
+    customerPlan,
+    outcome: "reply_generated",
+    request: {
+      model: "gpt-5-mini",
+      messages: buildSupportMessages(body.ticket),
     },
   });
 

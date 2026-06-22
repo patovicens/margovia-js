@@ -16,14 +16,54 @@ Use this table first:
 
 | Situation | Use |
 | --- | --- |
-| You want the easiest setup for OpenAI or Anthropic | `wrapOpenAI(..., { autoTrack: true })` or `wrapAnthropic(..., { autoTrack: true })` |
+| You want the easiest setup for OpenAI or Anthropic | `margovia.openai(client)` or `margovia.anthropic(client)` |
+| You want to patch an existing provider client | `wrapOpenAI(..., { autoTrack: true })` or `wrapAnthropic(..., { autoTrack: true })` |
 | You want explicit helper code around one provider call | `trackOpenAI(...)` or `trackAnthropic(...)` |
 | One product workflow has multiple provider/tool calls | `margovia.track(...)` around wrapped clients or manual cost calls |
 | You use a custom provider, search API, queue, or tool | `startRun(...)`, `run.trackCost(...)`, `run.complete(...)` |
 
-## Pattern 1: auto-track provider calls
+## Pattern 1: tracked provider adapter
 
-This is the simplest integration. Wrap the provider client once, then pass Margovia metadata with each provider request.
+This is the simplest integration. Create a tracked adapter once, then pass Margovia run fields plus the real provider request each time.
+
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+const anthropic = margovia.anthropic(new Anthropic());
+
+await anthropic.messages.create({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  customerPlan: { name: "pro", monthlyUsd: 99 },
+  outcome: "tweet_scored",
+  request: {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 800,
+    messages
+  }
+});
+```
+
+What happens:
+
+- Margovia starts a run named `score_tweet`.
+- The adapter calls Anthropic with `request`.
+- Anthropic returns token usage.
+- The SDK sends a cost event using Anthropic usage.
+- The run is completed with outcome `tweet_scored`.
+
+Use this when:
+
+- You call OpenAI or Anthropic directly.
+- One provider call maps cleanly to one Margovia run.
+- You want the clearest implementation with the least boilerplate.
+
+## Pattern 2: auto-track a patched provider client
+
+Use this when you want to keep calling the normal provider method and pass Margovia fields through provider `metadata`.
 
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
@@ -60,15 +100,15 @@ What happens:
 Use this when:
 
 - You call OpenAI or Anthropic directly.
-- You want the smallest code change.
+- You want the smallest code change across existing call sites.
 - One provider call maps cleanly to one Margovia run.
 
 Do not use this when:
 
 - One user workflow has several provider calls and you want them grouped under one run.
-- Your customer metadata does not fit in provider `metadata`.
+- Your customer metadata does not fit in provider `metadata`. Use the tracked adapter or explicit provider helper instead.
 
-## Pattern 2: explicit provider helper
+## Pattern 3: explicit provider helper
 
 Use this when you want your own helper function, like `createTrackedAnthropicMessage(...)`, but you do not want to manually call `startRun`, `trackCost`, and `complete`.
 
@@ -108,7 +148,7 @@ await run.trackCost({ provider: "anthropic", ...usage });
 await run.complete();
 ```
 
-## Pattern 3: workflow wrapper with `.track(...)`
+## Pattern 4: workflow wrapper with `.track(...)`
 
 `margovia.track(...)` creates a workflow boundary. It does not extract provider tokens by itself.
 
@@ -167,7 +207,7 @@ Use `.track(...)` when:
 
 Do not use `.track(...)` by itself for one raw provider call.
 
-## Pattern 4: manual runs
+## Pattern 5: manual runs
 
 Manual runs are for integrations the SDK cannot understand automatically.
 
@@ -205,6 +245,96 @@ Use this when:
 - You are tracking a paid tool call, search API, vector DB operation, or custom model.
 
 Manual runs stay `running` until you call `run.complete(...)` or `run.fail(...)`.
+
+## What if I do not use OpenAI or Anthropic?
+
+You can still use Margovia. OpenAI and Anthropic have first-class helpers because their response shapes are known, but any provider can be tracked if you send either token usage or direct cost.
+
+### If the provider returns token usage
+
+Use a manual run and send the token fields from the provider response.
+
+```ts
+const run = await margovia.startRun({
+  name: "generate_answer",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency"
+});
+
+try {
+  const response = await gemini.models.generateContent({
+    model: "gemini-2.5-pro",
+    contents: prompt
+  });
+
+  await run.trackCost({
+    provider: "gemini",
+    model: "gemini-2.5-pro",
+    inputTokens: response.usageMetadata?.promptTokenCount,
+    outputTokens: response.usageMetadata?.candidatesTokenCount,
+    status: "success"
+  });
+
+  await run.complete({ outcome: "answer_generated" });
+  return response;
+} catch (error) {
+  await run.fail({
+    error: error instanceof Error ? error.message : String(error)
+  });
+  throw error;
+}
+```
+
+This works when Margovia has pricing for that `provider` and `model`, or when you add pricing for it later.
+
+### If the provider returns actual cost
+
+Send `costUsd` directly.
+
+```ts
+const run = await margovia.startRun({
+  name: "rerank_results",
+  customerId: "workspace_123"
+});
+
+try {
+  const result = await cohere.rerank({
+    model: "rerank-v3.5",
+    query,
+    documents
+  });
+
+  await run.trackCost({
+    provider: "cohere",
+    model: "rerank-v3.5",
+    costUsd: 0.0042,
+    status: "success"
+  });
+
+  await run.complete({ outcome: "reranked" });
+  return result;
+} catch (error) {
+  await run.fail({
+    error: error instanceof Error ? error.message : String(error)
+  });
+  throw error;
+}
+```
+
+### If the provider returns neither tokens nor cost
+
+You can still track the workflow, but Margovia cannot calculate provider spend unless your app supplies a cost.
+
+```ts
+await run.trackCost({
+  provider: "internal_model",
+  model: "classifier-v1",
+  costUsd: estimateInternalCost(response),
+  status: "success"
+});
+```
+
+Do not use plain `.track(...)` around an unsupported raw provider and expect cost to appear. `.track(...)` only manages the run lifecycle. It does not know how to read arbitrary provider responses.
 
 ## Customer attribution
 

@@ -15,7 +15,7 @@ Runs have a lifecycle:
 - `completed`: the workflow finished successfully
 - `failed`: the workflow failed or was cancelled
 
-If you use `wrapOpenAI(..., { autoTrack: true })`, `wrapAnthropic(..., { autoTrack: true })`, `trackOpenAI(...)`, or `trackAnthropic(...)`, the SDK handles this lifecycle and records provider cost for you.
+If you use `margovia.openai(client)`, `margovia.anthropic(client)`, `wrapOpenAI(..., { autoTrack: true })`, `wrapAnthropic(..., { autoTrack: true })`, `trackOpenAI(...)`, or `trackAnthropic(...)`, the SDK handles this lifecycle and records provider cost for you.
 
 If you use `margovia.track(...)`, the SDK handles the run lifecycle, but cost is recorded only when the code inside uses wrapped provider clients or manually calls `run.trackCost(...)`.
 

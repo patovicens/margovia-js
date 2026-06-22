@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 
 const margovia = new Margovia({ apiKey: process.env.MARGOVIA_API_KEY });
-const anthropic = margovia.wrapAnthropic(new Anthropic(), { autoTrack: true });
+const anthropic = margovia.anthropic(new Anthropic());
 
 const plans = {
   free: { name: "free", monthlyUsd: 0 },
@@ -19,16 +19,15 @@ app.post("/api/summarize", async (req, res) => {
   const customerPlan = plans[workspace.plan];
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 800,
-    messages: buildSummaryMessages(req.body.document),
-    metadata: {
-      margoviaName: "summarize_contract",
-      margoviaOutcome: "summary_created",
-      customerId: `workspace_${workspace.id}`,
-      customerName: workspace.name,
-      customerPlan: customerPlan.name,
-      customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
+    name: "summarize_contract",
+    customerId: `workspace_${workspace.id}`,
+    customerName: workspace.name,
+    customerPlan,
+    outcome: "summary_created",
+    request: {
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 800,
+      messages: buildSummaryMessages(req.body.document),
     },
   });
 

@@ -3,7 +3,7 @@ title: Anthropic
 description: Wrap Anthropic messages and capture usage automatically.
 ---
 
-## Auto-track messages
+## Recommended: tracked adapter
 
 Use this when one Anthropic message should become one Margovia run.
 
@@ -12,6 +12,42 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Margovia } from "@margovia/sdk";
 
 const margovia = new Margovia();
+const anthropic = margovia.anthropic(new Anthropic());
+
+await anthropic.messages.create({
+  name: "summarize_contract",
+  customerId: "workspace_456",
+  customerName: "Acme Inc.",
+  customerPlan: { name: "enterprise", monthlyUsd: 499 },
+  outcome: "summary_created",
+  request: {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 800,
+    messages
+  }
+});
+```
+
+The adapter starts a run, calls `client.messages.create(request)`, reads `response.usage`, records the cost event, and completes or fails the run.
+
+Use a stable, namespaced `customerId`. Margovia stores this value exactly as sent and uses it as the customer grouping key.
+
+The adapter records:
+
+- `provider: "anthropic"`
+- model
+- input tokens
+- output tokens
+- cache creation tokens
+- 5 minute and 1 hour cache creation tokens
+- cache read tokens
+- latency
+
+## Alternative: patch an existing client
+
+Use this when you want to keep normal Anthropic call sites and pass Margovia fields through provider `metadata`.
+
+```ts
 const anthropic = margovia.wrapAnthropic(new Anthropic(), {
   autoTrack: true,
   defaultName: "anthropic.messages.create"
@@ -33,18 +69,7 @@ await anthropic.messages.create({
 });
 ```
 
-Use a stable, namespaced `customerId`. Margovia stores this value exactly as sent and uses it as the customer grouping key.
-
-The wrapper records:
-
-- `provider: "anthropic"`
-- model
-- input tokens
-- output tokens
-- cache creation tokens
-- 5 minute and 1 hour cache creation tokens
-- cache read tokens
-- latency
+This is useful for wide migrations, but the tracked adapter is clearer for new code.
 
 ## Custom run input
 

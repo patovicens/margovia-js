@@ -45,7 +45,7 @@ type TrackCostInput = {
 };
 ```
 
-Use `completeRun` only when a cost event is also the terminal event for the run. Wrapped provider calls use this internally for one-call workflows. For multi-step workflows, complete the run after all steps finish.
+Use `completeRun` only when a cost event is also the terminal event for the run. Tracked adapters, provider helpers, and wrapped provider calls use this internally for one-call workflows. For multi-step workflows, complete the run after all steps finish.
 
 ## `TrackOutcomeInput`
 
@@ -113,6 +113,44 @@ type GuardrailCheckResult = {
   }>;
 };
 ```
+
+## `TrackedProviderCallInput`
+
+```ts
+type TrackedProviderCallInput<TRequest> = StartRunInput & {
+  outcome?: string;
+  request: TRequest;
+};
+```
+
+Used by `margovia.openai(client)` and `margovia.anthropic(client)`.
+
+```ts
+await anthropic.messages.create({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  outcome: "tweet_scored",
+  request: {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 800,
+    messages
+  }
+});
+```
+
+`request` is the real provider request. Margovia run fields, such as `name`, `customerId`, `customerName`, and `outcome`, live beside `request`.
+
+## `TrackProviderInput`
+
+```ts
+type TrackProviderInput<TRequest, TResponse> = StartRunInput & {
+  outcome?: string;
+  request?: TRequest;
+  fn: () => PromiseLike<TResponse> | TResponse;
+};
+```
+
+Used by `trackOpenAI(...)` and `trackAnthropic(...)`. The SDK preserves the response type returned by `fn`.
 
 ## `CustomerInput`
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- Add tracked provider adapters with `margovia.openai(client)` and `margovia.anthropic(client)` for lower-boilerplate integrations.
+- Preserve the exact provider response type from `trackOpenAI(...)` and `trackAnthropic(...)`.
+- Widen provider request and usage typing to match real OpenAI and Anthropic SDK responses, including nullable usage fields.
+- Make provider helpers fail open when Margovia cannot start a run, so tracking outages do not block the provider call.
+
 ## 0.1.2
 
 - Add explicit `trackOpenAI(...)` and `trackAnthropic(...)` provider helpers.
