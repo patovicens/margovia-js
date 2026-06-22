@@ -33,7 +33,11 @@ For local API testing, point the SDK at your local or Railway API:
 MARGOVIA_BASE_URL=http://localhost:4010
 ```
 
-## Track an OpenAI call
+## Track your first OpenAI call
+
+The fastest path is `wrapOpenAI(..., { autoTrack: true })`.
+
+This makes one OpenAI call become one Margovia run with one cost event.
 
 ```ts
 import OpenAI from "openai";
@@ -60,6 +64,82 @@ await openai.chat.completions.create({
 ```
 
 With `autoTrack: true`, the wrapper starts a Margovia run, records the cost event from provider usage, and completes the run after the provider call succeeds.
+
+## Track your first Anthropic call
+
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+const anthropic = margovia.wrapAnthropic(new Anthropic(), { autoTrack: true });
+
+await anthropic.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 800,
+  messages: [
+    { role: "user", content: "Score this tweet for likely engagement." }
+  ],
+  metadata: {
+    margoviaName: "score_tweet",
+    margoviaOutcome: "tweet_scored",
+    customerId: "workspace_123",
+    customerName: "Northstar Agency",
+    customerPlan: "pro",
+    customerPlanMonthlyUsd: "99"
+  }
+});
+```
+
+## If you already have a helper
+
+Use `trackAnthropic(...)` or `trackOpenAI(...)` when you already have a provider helper function and want explicit tracking in one place.
+
+```ts
+const response = await margovia.trackAnthropic({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  outcome: "tweet_scored",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+This replaces manual code that calls `startRun`, `run.trackCost`, and `run.complete`.
+
+Use a raw provider client inside `trackAnthropic(...)` or `trackOpenAI(...)`. Do not pass an already-wrapped client into these helpers or you may double-report cost.
+
+## What `.track(...)` is for
+
+`margovia.track(...)` tracks a workflow boundary. It does not read OpenAI or Anthropic token usage by itself.
+
+Good use:
+
+```ts
+const openai = margovia.wrapOpenAI(new OpenAI());
+
+await margovia.track({
+  name: "generate_weekly_report",
+  customerId: "workspace_123",
+  outcome: "report_created",
+  fn: async () => {
+    await openai.chat.completions.create({ model: "gpt-5-mini", messages });
+    await openai.chat.completions.create({ model: "gpt-5-mini", messages: followupMessages });
+  }
+});
+```
+
+Bad use:
+
+```ts
+await margovia.track({
+  name: "score_tweet",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+That bad example creates a run, but if `anthropic` is not wrapped then Margovia receives no token usage and no cost.
 
 ## Verify
 

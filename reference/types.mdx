@@ -78,3 +78,72 @@ type FailRunInput = {
   completedAt?: string;
 };
 ```
+
+## `GuardrailCheckInput`
+
+```ts
+type GuardrailCheckInput = {
+  name: string;
+  userId?: string;
+  customerId?: string;
+  estimatedCostUsd?: number;
+};
+```
+
+Used by `margovia.canRun(...)` to check active budgets before running expensive work.
+
+## `GuardrailCheckResult`
+
+```ts
+type GuardrailCheckResult = {
+  allowed: boolean;
+  status: "allow" | "warn" | "block";
+  checks: Array<{
+    budgetId: string;
+    scopeType: "project" | "workflow" | "customer" | "user";
+    scopeValue?: string;
+    period: "run" | "day" | "month";
+    mode: "warn" | "soft_stop" | "hard_stop";
+    limitUsd: number;
+    currentSpendUsd: number;
+    estimatedCostUsd: number;
+    projectedSpendUsd: number;
+    usage: number;
+    status: "allow" | "warn" | "block";
+  }>;
+};
+```
+
+## `CustomerInput`
+
+```ts
+type CustomerInput = {
+  id: string | number;
+  name?: string | null;
+  plan?: string | { name: string; monthlyUsd: number };
+  planName?: string | null;
+  monthlyUsd?: number | null;
+  prefix?: string;
+};
+```
+
+Used by the `customer(...)` helper to build `customerId`, `customerName`, and `customerPlan`.
+
+```ts
+customer({
+  id: 42,
+  prefix: "workspace",
+  name: "Northstar Agency",
+  plan: { name: "pro", monthlyUsd: 99 }
+});
+```
+
+This produces:
+
+```ts
+{
+  customerId: "workspace_42",
+  customerName: "Northstar Agency",
+  customerPlan: { name: "pro", monthlyUsd: 99 }
+}
+```

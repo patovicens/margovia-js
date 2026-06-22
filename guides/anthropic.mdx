@@ -5,6 +5,8 @@ description: Wrap Anthropic messages and capture usage automatically.
 
 ## Auto-track messages
 
+Use this when one Anthropic message should become one Margovia run.
+
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
 import { Margovia } from "@margovia/sdk";
@@ -19,11 +21,11 @@ await anthropic.messages.create({
   model: "claude-sonnet-4-20250514",
   max_tokens: 800,
   messages,
-    metadata: {
-      margoviaName: "summarize_contract",
-      margoviaOutcome: "summary_created",
-      userId: "user_123",
-      customerId: "workspace_456",
+  metadata: {
+    margoviaName: "summarize_contract",
+    margoviaOutcome: "summary_created",
+    userId: "user_123",
+    customerId: "workspace_456",
     customerName: "Acme Inc.",
     customerPlan: "enterprise",
     customerPlanMonthlyUsd: "499"
@@ -49,7 +51,7 @@ The wrapper records:
 ```ts
 const anthropic = margovia.wrapAnthropic(new Anthropic(), {
   getRunInput: (_request, [body]) => ({
-      name: "contract_summary",
+    name: "contract_summary",
     customerId: `workspace_${body.workspace.id}`,
     customerName: body.workspace.name,
     customerPlan: { name: "enterprise", monthlyUsd: 499 },
@@ -59,3 +61,35 @@ const anthropic = margovia.wrapAnthropic(new Anthropic(), {
 ```
 
 Use `getRunInput` when customer or plan data comes from your authenticated request context instead of provider metadata.
+
+## Explicit helper
+
+Use `trackAnthropic(...)` when you already have a helper function around `anthropic.messages.create(...)`.
+
+```ts
+const response = await margovia.trackAnthropic({
+  name: "summarize_contract",
+  customerId: "workspace_456",
+  customerName: "Acme Inc.",
+  outcome: "summary_created",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+This starts the run, calls Anthropic, reads `response.usage`, records cost, and completes or fails the run.
+
+Use a raw Anthropic client inside `trackAnthropic(...)`. Do not pass an already-wrapped client into this helper or you may double-report the same call.
+
+## Common mistake
+
+Do not wrap a raw Anthropic call with `.track(...)` and expect cost to appear:
+
+```ts
+await margovia.track({
+  name: "summarize_contract",
+  fn: () => rawAnthropic.messages.create(params)
+});
+```
+
+That creates a run, but the raw client does not report token usage to Margovia. Use `wrapAnthropic(...)`, `trackAnthropic(...)`, or `run.trackCost(...)`.

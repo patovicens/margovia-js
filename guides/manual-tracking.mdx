@@ -5,6 +5,8 @@ description: Track custom providers, tool calls, and multi-step workflows.
 
 Use manual runs when you need explicit control or when the provider is not wrapped by the SDK.
 
+For normal OpenAI or Anthropic calls, prefer `wrapOpenAI(...)`, `wrapAnthropic(...)`, `trackOpenAI(...)`, or `trackAnthropic(...)`. Those APIs can read provider usage and report cost automatically.
+
 ## Start and complete a run
 
 ```ts
@@ -49,9 +51,9 @@ try {
 }
 ```
 
-## Use `track`
+## Use `track` for workflow lifecycle
 
-`track` wraps a function, opens a run, and completes or fails it automatically.
+`track` wraps a function, opens a run, and completes or fails it automatically. It does not read provider token usage by itself.
 
 ```ts
 const result = await margovia.track({
@@ -63,6 +65,21 @@ const result = await margovia.track({
 ```
 
 `track` is the safest option for custom workflows because it automatically completes the run on success and fails it when `fn` throws.
+
+If the function calls OpenAI or Anthropic, use wrapped clients inside:
+
+```ts
+const openai = margovia.wrapOpenAI(new OpenAI());
+
+await margovia.track({
+  name: "generate_report",
+  customerId: "workspace_123",
+  outcome: "report_generated",
+  fn: () => openai.chat.completions.create({ model: "gpt-5-mini", messages })
+});
+```
+
+Do not use `track` around a raw provider client unless you also report cost manually.
 
 ## Track multiple provider calls
 

@@ -1,0 +1,295 @@
+---
+title: Integration patterns
+description: Pick the right Margovia SDK API for your app.
+---
+
+Margovia tracks two related things:
+
+- **Runs**: a workflow happened, such as `support_reply` or `generate_weekly_report`.
+- **Cost events**: a provider call or tool call inside that run spent money.
+
+This distinction matters. A run without cost events proves that work happened, but it does not tell Margovia what OpenAI, Anthropic, or another provider charged.
+
+## Quick decision
+
+Use this table first:
+
+| Situation | Use |
+| --- | --- |
+| You want the easiest setup for OpenAI or Anthropic | `wrapOpenAI(..., { autoTrack: true })` or `wrapAnthropic(..., { autoTrack: true })` |
+| You want explicit helper code around one provider call | `trackOpenAI(...)` or `trackAnthropic(...)` |
+| One product workflow has multiple provider/tool calls | `margovia.track(...)` around wrapped clients or manual cost calls |
+| You use a custom provider, search API, queue, or tool | `startRun(...)`, `run.trackCost(...)`, `run.complete(...)` |
+
+## Pattern 1: auto-track provider calls
+
+This is the simplest integration. Wrap the provider client once, then pass Margovia metadata with each provider request.
+
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { Margovia } from "@margovia/sdk";
+
+const margovia = new Margovia();
+
+const anthropic = margovia.wrapAnthropic(new Anthropic(), {
+  autoTrack: true
+});
+
+await anthropic.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 800,
+  messages,
+  metadata: {
+    margoviaName: "score_tweet",
+    margoviaOutcome: "tweet_scored",
+    customerId: "workspace_123",
+    customerName: "Northstar Agency",
+    customerPlan: "pro",
+    customerPlanMonthlyUsd: "99"
+  }
+});
+```
+
+What happens:
+
+- Margovia starts a run named `score_tweet`.
+- Anthropic returns token usage.
+- The SDK sends a cost event using Anthropic usage.
+- The run is completed with outcome `tweet_scored`.
+
+Use this when:
+
+- You call OpenAI or Anthropic directly.
+- You want the smallest code change.
+- One provider call maps cleanly to one Margovia run.
+
+Do not use this when:
+
+- One user workflow has several provider calls and you want them grouped under one run.
+- Your customer metadata does not fit in provider `metadata`.
+
+## Pattern 2: explicit provider helper
+
+Use this when you want your own helper function, like `createTrackedAnthropicMessage(...)`, but you do not want to manually call `startRun`, `trackCost`, and `complete`.
+
+```ts
+const response = await margovia.trackAnthropic({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency",
+  outcome: "tweet_scored",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+What happens:
+
+- Margovia starts a run.
+- Your function calls Anthropic.
+- The SDK reads `response.usage`.
+- The SDK records cost.
+- The SDK completes or fails the run.
+
+Use this when:
+
+- You already have a helper function around provider calls.
+- You want attribution to come from your app code instead of provider metadata.
+- You want a clear explicit call site for tracking.
+
+Use a raw provider client inside `trackOpenAI(...)` or `trackAnthropic(...)`. Do not pass an already-wrapped client into these helpers or you may double-report the same provider call.
+
+This is the clean replacement for code like:
+
+```ts
+const run = await margovia.startRun({ name: "score_tweet" });
+const response = await anthropic.messages.create(params);
+await run.trackCost({ provider: "anthropic", ...usage });
+await run.complete();
+```
+
+## Pattern 3: workflow wrapper with `.track(...)`
+
+`margovia.track(...)` creates a workflow boundary. It does not extract provider tokens by itself.
+
+This is good:
+
+```ts
+const openai = margovia.wrapOpenAI(new OpenAI());
+
+await margovia.track({
+  name: "generate_weekly_report",
+  customerId: "workspace_123",
+  outcome: "report_created",
+  fn: async () => {
+    const summary = await openai.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: summaryMessages
+    });
+
+    const chartNotes = await openai.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: chartMessages
+    });
+
+    return buildReport(summary, chartNotes);
+  }
+});
+```
+
+Why this works:
+
+- `.track(...)` creates one parent run named `generate_weekly_report`.
+- `wrapOpenAI(...)` records cost events for both OpenAI calls inside the run.
+- `.track(...)` completes or fails the parent workflow.
+
+This is bad:
+
+```ts
+await margovia.track({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+Why it is bad:
+
+- The raw Anthropic client is not wrapped.
+- `.track(...)` has no access to `response.usage`.
+- Margovia will see a completed run with no cost events.
+
+Use `.track(...)` when:
+
+- You need one Margovia run around several provider/tool calls.
+- The calls inside use wrapped clients.
+- Or you manually call `run.trackCost(...)` somewhere inside the workflow.
+
+Do not use `.track(...)` by itself for one raw provider call.
+
+## Pattern 4: manual runs
+
+Manual runs are for integrations the SDK cannot understand automatically.
+
+```ts
+const run = await margovia.startRun({
+  name: "research_company",
+  customerId: "workspace_123",
+  customerName: "Northstar Agency"
+});
+
+try {
+  const result = await searchApi.search(query);
+
+  await run.trackCost({
+    provider: "serpapi",
+    label: "company_search",
+    costUsd: 0.01,
+    status: "success"
+  });
+
+  await run.complete({ outcome: "research_completed" });
+  return result;
+} catch (error) {
+  await run.fail({
+    error: error instanceof Error ? error.message : String(error)
+  });
+  throw error;
+}
+```
+
+Use this when:
+
+- The provider is not OpenAI or Anthropic.
+- You already know the cost in dollars.
+- You are tracking a paid tool call, search API, vector DB operation, or custom model.
+
+Manual runs stay `running` until you call `run.complete(...)` or `run.fail(...)`.
+
+## Customer attribution
+
+Always send a stable customer key from your app.
+
+Good:
+
+```ts
+customerId: `workspace_${workspace.id}`
+customerId: `org_${organization.id}`
+customerId: `stripe_${stripeCustomer.id}`
+```
+
+Bad:
+
+```ts
+customerId: "1"
+customerId: "42"
+customerId: customer.name
+```
+
+Raw numeric IDs are hard to debug across systems. Names can change. Prefer namespaced IDs that can join back to your app, billing system, logs, or warehouse.
+
+## Common mistakes
+
+### Mistake: using `.track(...)` with a raw provider client
+
+```ts
+await margovia.track({
+  name: "summarize_contract",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+This creates a run but no cost event.
+
+Fix it with `trackAnthropic(...)`:
+
+```ts
+await margovia.trackAnthropic({
+  name: "summarize_contract",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+Or fix it with a wrapped client:
+
+```ts
+const anthropic = margovia.wrapAnthropic(new Anthropic());
+
+await margovia.track({
+  name: "summarize_contract",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+### Mistake: starting a manual run and never completing it
+
+```ts
+const run = await margovia.startRun({ name: "support_reply" });
+await run.trackCost({ provider: "manual", costUsd: 0.01 });
+```
+
+The run will stay `running`.
+
+Fix:
+
+```ts
+await run.complete({ outcome: "reply_generated" });
+```
+
+### Mistake: sending only `userId`
+
+```ts
+userId: "user_123"
+```
+
+This tracks the actor, but not the paying account.
+
+Fix:
+
+```ts
+customerId: "workspace_123",
+userId: "user_123"
+```
+
+Use `customerId` for the account, workspace, tenant, organization, or billing customer. Use `userId` for the human or service actor inside that customer.

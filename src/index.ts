@@ -20,6 +20,20 @@ type StartRunInput = {
   startedAt?: string;
 };
 
+type CustomerInput = {
+  id: string | number;
+  name?: string | null;
+  plan?: CustomerPlanInput;
+  planName?: string | null;
+  monthlyUsd?: number | null;
+  prefix?: string;
+};
+
+type UserInput = {
+  id: string | number;
+  prefix?: string;
+};
+
 type CompleteRunInput = {
   outcome?: string;
   metadata?: Metadata;
@@ -80,6 +94,36 @@ type TrackOptions<T> = StartRunInput & {
 
 type AutoRunInput = StartRunInput & {
   outcome?: string;
+};
+
+type GuardrailCheckInput = {
+  name: string;
+  userId?: string;
+  customerId?: string;
+  estimatedCostUsd?: number;
+};
+
+type GuardrailCheckResult = {
+  allowed: boolean;
+  status: "allow" | "warn" | "block";
+  checks: Array<{
+    budgetId: string;
+    scopeType: "project" | "workflow" | "customer" | "user";
+    scopeValue?: string;
+    period: "run" | "day" | "month";
+    mode: "warn" | "soft_stop" | "hard_stop";
+    limitUsd: number;
+    currentSpendUsd: number;
+    estimatedCostUsd: number;
+    projectedSpendUsd: number;
+    usage: number;
+    status: "allow" | "warn" | "block";
+  }>;
+};
+
+type TrackProviderInput<TRequest, TResponse> = AutoRunInput & {
+  request?: TRequest;
+  fn: () => Promise<TResponse> | TResponse;
 };
 
 type WrapOptions<TRequest> = {
@@ -210,6 +254,7 @@ export class Margovia {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly debug: boolean;
+  private readonly pendingRequests = new Set<Promise<unknown>>();
   private readonly runContext = new AsyncLocalStorage<RunContext>();
 
   constructor(options: MargoviaOptions = {}) {
@@ -247,6 +292,21 @@ export class Margovia {
       });
       throw error;
     }
+  }
+
+  async canRun(input: GuardrailCheckInput): Promise<GuardrailCheckResult> {
+    if (!this.apiKey) {
+      return { allowed: true, status: "allow", checks: [] };
+    }
+
+    return this.request<GuardrailCheckResult>("/v1/guardrails/check", {
+      method: "POST",
+      body: input
+    });
+  }
+
+  async flush() {
+    await Promise.allSettled([...this.pendingRequests]);
   }
 
   async trackOutcome(input: TrackOutcomeInput) {
@@ -332,6 +392,31 @@ export class Margovia {
     return client;
   }
 
+  async trackOpenAI<TResponse extends OpenAIResponseLike>(input: TrackProviderInput<{ model?: string; metadata?: Record<string, unknown> }, TResponse>) {
+    const { fn, outcome, request, ...runInput } = input;
+    const run = await this.startRun(runInput);
+    const started = Date.now();
+
+    try {
+      const response = await this.runContext.run({ runId: run.id }, () => Promise.resolve(fn()));
+      try {
+        await this.trackOpenAICost(run.id, response, request, Date.now() - started, undefined, {
+          completeRun: true,
+          outcome
+        }, false);
+      } catch (error) {
+        this.log(`Failed to record OpenAI cost event: ${error instanceof Error ? error.message : String(error)}`);
+        await this.safeCompleteRun(run.id, { outcome });
+      }
+      return response;
+    } catch (error) {
+      await run.fail({
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+      throw error;
+    }
+  }
+
   wrapAnthropic<TClient extends AnthropicClientLike>(client: TClient, options: WrapOptions<{ model?: string; metadata?: Record<string, unknown> }> = {}): TClient {
     const create = client.messages?.create;
     if (!create || typeof create !== "function") {
@@ -392,16 +477,42 @@ export class Margovia {
     return client;
   }
 
+  async trackAnthropic<TResponse extends AnthropicResponseLike>(input: TrackProviderInput<{ model?: string; metadata?: Record<string, unknown> }, TResponse>) {
+    const { fn, outcome, request, ...runInput } = input;
+    const run = await this.startRun(runInput);
+    const started = Date.now();
+
+    try {
+      const response = await this.runContext.run({ runId: run.id }, () => Promise.resolve(fn()));
+      try {
+        await this.trackAnthropicCost(run.id, response, request, Date.now() - started, undefined, {
+          completeRun: true,
+          outcome
+        }, false);
+      } catch (error) {
+        this.log(`Failed to record Anthropic cost event: ${error instanceof Error ? error.message : String(error)}`);
+        await this.safeCompleteRun(run.id, { outcome });
+      }
+      return response;
+    } catch (error) {
+      await run.fail({
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+      throw error;
+    }
+  }
+
   private async trackOpenAICost(
     runId: string,
     response: OpenAIResponseLike,
-    request: { model?: string } | undefined,
+    request: { model?: string; metadata?: Record<string, unknown> } | undefined,
     latencyMs: number,
     label?: string,
-    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">
+    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">,
+    safe = true
   ) {
     const usage = response.usage;
-    await this.safeTrackCost({
+    const input: TrackCostInput = {
       runId,
       provider: "openai",
       label,
@@ -413,7 +524,14 @@ export class Margovia {
       latencyMs,
       status: "success",
       ...terminal
-    });
+    };
+
+    if (safe) {
+      await this.safeTrackCost(input);
+      return;
+    }
+
+    await this.trackCost(input);
   }
 
   async completeRun(runId: string, input: CompleteRunInput = {}) {
@@ -455,13 +573,14 @@ export class Margovia {
   private async trackAnthropicCost(
     runId: string,
     response: AnthropicResponseLike,
-    request: { model?: string } | undefined,
+    request: { model?: string; metadata?: Record<string, unknown> } | undefined,
     latencyMs: number,
     label?: string,
-    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">
+    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">,
+    safe = true
   ) {
     const usage = response.usage;
-    await this.safeTrackCost({
+    const input: TrackCostInput = {
       runId,
       provider: "anthropic",
       label,
@@ -475,7 +594,14 @@ export class Margovia {
       latencyMs,
       status: "success",
       ...terminal
-    });
+    };
+
+    if (safe) {
+      await this.safeTrackCost(input);
+      return;
+    }
+
+    await this.trackCost(input);
   }
 
   private async safeFailRun(runId: string, input: FailRunInput = {}) {
@@ -486,7 +612,26 @@ export class Margovia {
     }
   }
 
+  private async safeCompleteRun(runId: string, input: CompleteRunInput = {}) {
+    try {
+      await this.completeRun(runId, input);
+    } catch (error) {
+      this.log(`Failed to complete run: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private async request<T = unknown>(path: string, options: { method: string; body?: unknown }): Promise<T> {
+    const pending = this.performRequest<T>(path, options);
+    this.pendingRequests.add(pending);
+
+    try {
+      return await pending;
+    } finally {
+      this.pendingRequests.delete(pending);
+    }
+  }
+
+  private async performRequest<T = unknown>(path: string, options: { method: string; body?: unknown }): Promise<T> {
     if (!this.apiKey) {
       throw new Error("Margovia API key is required");
     }
@@ -521,6 +666,30 @@ export class Margovia {
       console.warn(`[margovia] ${message}`);
     }
   }
+}
+
+function namespacedId(value: string | number, prefix?: string) {
+  const id = String(value);
+  if (!prefix || id.includes("_")) {
+    return id;
+  }
+
+  return `${prefix}_${id}`;
+}
+
+export function customer(input: CustomerInput): Pick<StartRunInput, "customerId" | "customerName" | "customerPlan"> {
+  const plan = input.plan ?? (input.planName ? input.monthlyUsd == null ? input.planName : { name: input.planName, monthlyUsd: input.monthlyUsd } : undefined);
+  return {
+    customerId: namespacedId(input.id, input.prefix ?? "customer"),
+    customerName: input.name ?? undefined,
+    customerPlan: plan
+  };
+}
+
+export function user(input: UserInput): Pick<StartRunInput, "userId"> {
+  return {
+    userId: namespacedId(input.id, input.prefix ?? "user")
+  };
 }
 
 export class MargoviaRun {
@@ -559,4 +728,4 @@ export class MargoviaRun {
   }
 }
 
-export type { CompleteRunInput, CustomerPlanInput, FailRunInput, MargoviaOptions, StartRunInput, TrackCostInput, TrackOptions, TrackOutcomeInput };
+export type { CompleteRunInput, CustomerInput, CustomerPlanInput, FailRunInput, GuardrailCheckInput, GuardrailCheckResult, MargoviaOptions, StartRunInput, TrackCostInput, TrackOptions, TrackOutcomeInput, TrackProviderInput, UserInput };

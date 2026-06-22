@@ -15,7 +15,11 @@ Runs have a lifecycle:
 - `completed`: the workflow finished successfully
 - `failed`: the workflow failed or was cancelled
 
-If you use `wrapOpenAI`, `wrapAnthropic`, or `margovia.track(...)`, the SDK handles this lifecycle for you. If you use `startRun(...)` manually, always call `run.complete(...)` or `run.fail(...)`.
+If you use `wrapOpenAI(..., { autoTrack: true })`, `wrapAnthropic(..., { autoTrack: true })`, `trackOpenAI(...)`, or `trackAnthropic(...)`, the SDK handles this lifecycle and records provider cost for you.
+
+If you use `margovia.track(...)`, the SDK handles the run lifecycle, but cost is recorded only when the code inside uses wrapped provider clients or manually calls `run.trackCost(...)`.
+
+If you use `startRun(...)` manually, always call `run.complete(...)` or `run.fail(...)`.
 
 ## Cost event
 
@@ -30,6 +34,8 @@ Cost events can include:
 - Reasoning tokens
 - Manual `costUsd`
 - Latency and status
+
+Runs and cost events are separate. A run can exist without cost events, but then Margovia cannot calculate provider spend for that run.
 
 ## Outcome
 

@@ -5,6 +5,8 @@ description: Wrap OpenAI chat completions and capture usage automatically.
 
 ## Auto-track chat completions
 
+Use this when one OpenAI call should become one Margovia run.
+
 ```ts
 import OpenAI from "openai";
 import { Margovia } from "@margovia/sdk";
@@ -18,11 +20,11 @@ const openai = margovia.wrapOpenAI(new OpenAI(), {
 await openai.chat.completions.create({
   model: "gpt-5-mini",
   messages,
-    metadata: {
-      margoviaName: "draft_support_reply",
-      margoviaOutcome: "message_created",
-      userId: "user_123",
-      customerId: "workspace_456",
+  metadata: {
+    margoviaName: "draft_support_reply",
+    margoviaOutcome: "message_created",
+    userId: "user_123",
+    customerId: "workspace_456",
     customerName: "Northstar Agency",
     customerPlan: "pro",
     customerPlanMonthlyUsd: "99"
@@ -49,7 +51,7 @@ Use `getRunInput` when your customer metadata lives outside the provider request
 ```ts
 const openai = margovia.wrapOpenAI(new OpenAI(), {
   getRunInput: (_request, [body]) => ({
-      name: "support_reply",
+    name: "support_reply",
     customerId: `workspace_${body.workspace.id}`,
     customerName: body.workspace.name,
     customerPlan: { name: body.workspace.plan, monthlyUsd: 99 },
@@ -60,9 +62,33 @@ const openai = margovia.wrapOpenAI(new OpenAI(), {
 
 Use `getRunInput` when metadata is not available on the provider request or when you want to derive attribution from your authenticated app context.
 
+## Explicit helper
+
+Use `trackOpenAI(...)` when you prefer one explicit helper call around the provider request.
+
+```ts
+const response = await margovia.trackOpenAI({
+  name: "draft_support_reply",
+  customerId: "workspace_456",
+  customerName: "Northstar Agency",
+  outcome: "reply_generated",
+  request: {
+    model: "gpt-5-mini"
+  },
+  fn: () => openai.chat.completions.create({
+    model: "gpt-5-mini",
+    messages
+  })
+});
+```
+
+This starts the run, calls OpenAI, reads `response.usage`, records cost, and completes or fails the run.
+
+Use a raw OpenAI client inside `trackOpenAI(...)`. Do not pass an already-wrapped client into this helper or you may double-report the same call.
+
 ## Manual run context
 
-Use `run.step(...)` when a provider call belongs to a larger workflow.
+Use `run.step(...)` when a provider call belongs to a larger manual workflow.
 
 ```ts
 const run = await margovia.startRun({
@@ -81,3 +107,16 @@ await run.complete({ outcome: "ticket_resolved" });
 ```
 
 When you open a manual run, you own its lifecycle. Always call `run.complete(...)` or `run.fail(...)` after the workflow finishes.
+
+## Common mistake
+
+Do not wrap a raw OpenAI call with `.track(...)` and expect cost to appear:
+
+```ts
+await margovia.track({
+  name: "draft_support_reply",
+  fn: () => rawOpenAI.chat.completions.create({ model: "gpt-5-mini", messages })
+});
+```
+
+That creates a run, but the raw client does not report token usage to Margovia. Use `wrapOpenAI(...)`, `trackOpenAI(...)`, or `run.trackCost(...)`.

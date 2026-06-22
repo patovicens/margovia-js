@@ -34,6 +34,48 @@ await run.fail({ error: "Provider timed out" });
 
 Cost events alone do not close a manual run. This is intentional because a workflow can have several provider calls or tool calls before it is done.
 
+## Runs appear but cost is zero
+
+This usually means a run was created without a cost event.
+
+Common causes:
+
+- You used `margovia.track(...)` around a raw OpenAI or Anthropic client
+- You called `startRun(...)` and `complete(...)` but never called `run.trackCost(...)`
+- The provider response did not include usage fields
+
+Bad:
+
+```ts
+await margovia.track({
+  name: "score_tweet",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+If `anthropic` is not wrapped, Margovia cannot read token usage.
+
+Fix with a provider helper:
+
+```ts
+await margovia.trackAnthropic({
+  name: "score_tweet",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+Or fix with a wrapped client:
+
+```ts
+const anthropic = margovia.wrapAnthropic(new Anthropic());
+
+await margovia.track({
+  name: "score_tweet",
+  fn: () => anthropic.messages.create(params)
+});
+```
+
 ## Customer margin is missing
 
 Margin requires both cost and revenue context.

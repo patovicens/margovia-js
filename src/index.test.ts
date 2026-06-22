@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Margovia } from "./index.js";
+import { Margovia, customer } from "./index.js";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -93,6 +93,61 @@ describe("Margovia.wrapAnthropic", () => {
       cachedInputTokens: 400,
       completeRun: true,
       outcome: "message_created"
+    });
+  });
+});
+
+describe("Margovia.trackAnthropic", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("tracks one Anthropic provider call with cost and terminal outcome", async () => {
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const stringUrl = String(url);
+        requests.push({
+          url: stringUrl,
+          body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {}
+        });
+
+        if (stringUrl.endsWith("/v1/runs/start")) {
+          return jsonResponse({ id: "run_helper_123" });
+        }
+
+        return jsonResponse({});
+      })
+    );
+
+    const margovia = new Margovia({ apiKey: "mg_test", baseUrl: "https://api.test" });
+    const response = await margovia.trackAnthropic({
+      name: "score_tweet",
+      customerId: "workspace_456",
+      outcome: "tweet_scored",
+      request: { model: "claude-sonnet-4-6" },
+      fn: async () => ({
+        model: "claude-sonnet-4-6",
+        usage: {
+          input_tokens: 200,
+          output_tokens: 50
+        }
+      })
+    });
+
+    expect(response.model).toBe("claude-sonnet-4-6");
+    expect(requests.map((request) => request.url)).toEqual([
+      "https://api.test/v1/runs/start",
+      "https://api.test/v1/runs/run_helper_123/cost-events"
+    ]);
+    expect(requests[1]!.body).toMatchObject({
+      provider: "anthropic",
+      model: "claude-sonnet-4-6",
+      inputTokens: 200,
+      outputTokens: 50,
+      completeRun: true,
+      outcome: "tweet_scored"
     });
   });
 });
@@ -231,5 +286,59 @@ describe("Margovia.wrapOpenAI", () => {
 
     expect(create).toHaveBeenCalledOnce();
     expect(requests.map((request) => request.url)).toEqual(["https://api.test/v1/runs/start"]);
+  });
+});
+
+describe("Margovia.canRun", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls the guardrail check endpoint", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          allowed: false,
+          status: "block",
+          checks: []
+        })
+      )
+    );
+
+    const margovia = new Margovia({ apiKey: "mg_test", baseUrl: "https://api.test" });
+    const result = await margovia.canRun({
+      name: "support_reply",
+      customerId: "workspace_456",
+      estimatedCostUsd: 0.05
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.test/v1/guardrails/check",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "support_reply",
+          customerId: "workspace_456",
+          estimatedCostUsd: 0.05
+        })
+      })
+    );
+  });
+});
+
+describe("customer", () => {
+  it("creates stable namespaced customer attribution", () => {
+    expect(customer({
+      id: 42,
+      prefix: "workspace",
+      name: "Northstar Agency",
+      plan: { name: "pro", monthlyUsd: 99 }
+    })).toEqual({
+      customerId: "workspace_42",
+      customerName: "Northstar Agency",
+      customerPlan: { name: "pro", monthlyUsd: 99 }
+    });
   });
 });

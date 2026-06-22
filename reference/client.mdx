@@ -26,31 +26,6 @@ If omitted, the client reads:
 - `MARGOVIA_BASE_URL`
 - `MARGOVIA_DEBUG`
 
-## `startRun`
-
-```ts
-await margovia.startRun(input: StartRunInput)
-```
-
-Starts a run and returns a `MargoviaRun`.
-
-Manual runs stay `running` until `run.complete(...)` or `run.fail(...)` is called.
-
-## `track`
-
-```ts
-await margovia.track({
-  name: "support_reply",
-  customerId: "workspace_123",
-  outcome: "reply_generated",
-  fn: async () => doWork()
-});
-```
-
-Wraps a function in a run. The run is completed on success and failed on error.
-
-Use this for custom workflows when you want automatic lifecycle handling without provider-specific wrappers.
-
 ## `wrapOpenAI`
 
 ```ts
@@ -71,6 +46,81 @@ Wraps `client.messages.create`.
 
 With `autoTrack: true`, the wrapper starts a run, records the provider cost event, and completes the run after the provider call succeeds.
 
+## `trackOpenAI`
+
+```ts
+await margovia.trackOpenAI({
+  name: "support_reply",
+  customerId: "workspace_123",
+  request: { model: "gpt-5-mini" },
+  fn: () => openai.chat.completions.create({ model: "gpt-5-mini", messages })
+});
+```
+
+Starts a run, calls your function, reads OpenAI response usage, records a cost event, then completes or fails the run.
+
+Use this when you prefer an explicit helper around one provider call.
+
+## `trackAnthropic`
+
+```ts
+await margovia.trackAnthropic({
+  name: "score_tweet",
+  customerId: "workspace_123",
+  request: params,
+  fn: () => anthropic.messages.create(params)
+});
+```
+
+Starts a run, calls your function, reads Anthropic response usage, records a cost event, then completes or fails the run.
+
+Use this when you prefer an explicit helper around one provider call.
+
+## `track`
+
+```ts
+await margovia.track({
+  name: "weekly_report",
+  customerId: "workspace_123",
+  outcome: "report_generated",
+  fn: async () => doWork()
+});
+```
+
+Wraps a function in a run. The run is completed on success and failed on error.
+
+`track` does not extract provider token usage by itself. Use wrapped provider clients inside `fn`, call `trackOpenAI(...)` or `trackAnthropic(...)`, or manually report cost.
+
+## `canRun`
+
+```ts
+await margovia.canRun({
+  name: "support_reply",
+  customerId: "workspace_123",
+  estimatedCostUsd: 0.05
+});
+```
+
+Checks active Margovia budgets before running expensive work. This is advisory until hard/soft stop enforcement is enabled in your product.
+
+## `flush`
+
+```ts
+await margovia.flush();
+```
+
+Waits for in-flight SDK requests to settle. Most SDK calls are awaited already, but `flush` is useful before a short-lived process exits.
+
+## `startRun`
+
+```ts
+await margovia.startRun(input: StartRunInput)
+```
+
+Starts a run and returns a `MargoviaRun`.
+
+Manual runs stay `running` until `run.complete(...)` or `run.fail(...)` is called.
+
 ## `trackCost`
 
 ```ts
@@ -88,3 +138,23 @@ await margovia.trackOutcome(input: TrackOutcomeInput)
 ```
 
 Records an outcome for an existing run.
+
+## Helpers
+
+```ts
+import { customer, user } from "@margovia/sdk";
+
+await margovia.track({
+  name: "support_reply",
+  ...customer({
+    id: workspace.id,
+    prefix: "workspace",
+    name: workspace.name,
+    plan: { name: "pro", monthlyUsd: 99 }
+  }),
+  ...user({ id: actor.id }),
+  fn: () => doWork()
+});
+```
+
+`customer(...)` and `user(...)` help create stable namespaced IDs such as `workspace_123` and `user_456`.
