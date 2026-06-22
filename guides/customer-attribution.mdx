@@ -1,0 +1,110 @@
+---
+title: Customer attribution
+description: Choose stable customer IDs, names, plans, and revenue fields.
+---
+
+Customer attribution is what turns raw model usage into margin reporting. Margovia does not invent customer IDs for you. Your app sends the stable account, workspace, organization, tenant, or billing customer ID that you already use internally.
+
+## Recommended shape
+
+```ts
+{
+  customerId: `workspace_${workspace.id}`,
+  customerName: workspace.name,
+  customerPlan: {
+    name: workspace.plan,
+    monthlyUsd: workspace.planMonthlyUsd
+  }
+}
+```
+
+Use the same `customerId` every time the same paying account uses an AI workflow.
+
+## Customer ID rules
+
+Good customer IDs are:
+
+- Stable across deploys and sessions
+- Unique inside the Margovia project
+- Namespaced by entity type or source system
+- Safe to join back to your app, billing system, logs, or warehouse
+
+Examples:
+
+```ts
+customerId: `org_${organization.id}`
+customerId: `workspace_${workspace.id}`
+customerId: `stripe_${stripeCustomer.id}`
+customerId: `tenant_${tenant.id}`
+customerId: `user_${user.id}`
+```
+
+Avoid raw numeric IDs like `"1"` or `"42"` unless that is genuinely the globally stable ID you use everywhere. If your app's real ID is numeric, prefix it before sending:
+
+```ts
+customerId: `workspace_${workspace.id}` // workspace_42
+```
+
+Margovia stores the value exactly as you send it. It will not add `margovia_`, rewrite IDs, or normalize IDs, because the ID is your join key back to your own systems.
+
+## Name versus ID
+
+`customerId` is the stable grouping key. `customerName` is the display name shown in the dashboard.
+
+```ts
+{
+  customerId: "workspace_42",
+  customerName: "Northstar Agency"
+}
+```
+
+Names can change. IDs should not.
+
+If you only know the ID at ingestion time, send `customerId` first and add readable aliases later in Margovia settings.
+
+## Plan and revenue
+
+Send plan data when you can. This lets Margovia calculate margin, AI cost as a percentage of revenue, and risky accounts.
+
+```ts
+{
+  customerPlan: { name: "pro", monthlyUsd: 99 }
+}
+```
+
+Wrappers also accept provider metadata fields:
+
+```ts
+metadata: {
+  customerId: "workspace_42",
+  customerName: "Northstar Agency",
+  customerPlan: "pro",
+  customerPlanMonthlyUsd: "99"
+}
+```
+
+Use the plan revenue that applies to the account at the time of the run. If your billing changes later, future runs should carry the new plan.
+
+## User IDs
+
+Use `userId` for the human or service actor inside the customer account.
+
+```ts
+{
+  customerId: `workspace_${workspace.id}`,
+  userId: `user_${user.id}`
+}
+```
+
+Do not use `userId` as a substitute for `customerId` unless your product bills individual users and the user is the actual customer.
+
+## Multi-environment projects
+
+If staging and production data are sent to the same Margovia project, namespace IDs by environment:
+
+```ts
+customerId: `prod_workspace_${workspace.id}`
+customerId: `staging_workspace_${workspace.id}`
+```
+
+The cleaner option is to use separate Margovia projects for staging and production.

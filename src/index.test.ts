@@ -32,10 +32,6 @@ describe("Margovia.wrapAnthropic", () => {
           return jsonResponse({ id: "cost_123", runId: "run_auto_123", costUsd: 0.01, costSource: "estimated" });
         }
 
-        if (stringUrl.endsWith("/v1/runs/run_auto_123/complete")) {
-          return jsonResponse({ id: "run_auto_123", status: "completed", totalCostUsd: 0.01 });
-        }
-
         return jsonResponse({});
       })
     );
@@ -78,8 +74,7 @@ describe("Margovia.wrapAnthropic", () => {
     expect(create).toHaveBeenCalledOnce();
     expect(requests.map((request) => request.url)).toEqual([
       "https://api.test/v1/runs/start",
-      "https://api.test/v1/runs/run_auto_123/cost-events",
-      "https://api.test/v1/runs/run_auto_123/complete"
+      "https://api.test/v1/runs/run_auto_123/cost-events"
     ]);
     expect(requests[0]!.body).toMatchObject({
       name: "suggestions_generate",
@@ -95,9 +90,10 @@ describe("Margovia.wrapAnthropic", () => {
       cacheCreationInputTokens: 300,
       cacheCreationInputTokens5m: 100,
       cacheCreationInputTokens1h: 200,
-      cachedInputTokens: 400
+      cachedInputTokens: 400,
+      completeRun: true,
+      outcome: "message_created"
     });
-    expect(requests[2]!.body).toEqual({ outcome: "message_created" });
   });
 });
 
@@ -173,8 +169,7 @@ describe("Margovia.wrapOpenAI", () => {
     expect(create).toHaveBeenCalledOnce();
     expect(requests.map((request) => request.url)).toEqual([
       "https://api.test/v1/runs/start",
-      "https://api.test/v1/runs/run_openai_123/cost-events",
-      "https://api.test/v1/runs/run_openai_123/complete"
+      "https://api.test/v1/runs/run_openai_123/cost-events"
     ]);
     expect(requests[0]!.body).toMatchObject({
       name: "draft_support_reply",
@@ -188,9 +183,10 @@ describe("Margovia.wrapOpenAI", () => {
       inputTokens: 1200,
       outputTokens: 240,
       cachedInputTokens: 300,
-      reasoningTokens: 40
+      reasoningTokens: 40,
+      completeRun: true,
+      outcome: "message_created"
     });
-    expect(requests[2]!.body).toEqual({ outcome: "message_created" });
   });
 
   it("does not attach wrapped calls to a previous manual run unless a run context is active", async () => {

@@ -47,6 +47,8 @@ type TrackCostInput = {
   costUsd?: number;
   latencyMs?: number;
   status?: string;
+  completeRun?: boolean;
+  outcome?: string;
   metadata?: Metadata;
   createdAt?: string;
 };
@@ -212,7 +214,7 @@ export class Margovia {
 
   constructor(options: MargoviaOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.MARGOVIA_API_KEY;
-    this.baseUrl = (options.baseUrl ?? process.env.MARGOVIA_BASE_URL ?? "https://api.margovia.dev").replace(/\/$/, "");
+    this.baseUrl = (options.baseUrl ?? process.env.MARGOVIA_BASE_URL ?? "https://api.margovia.com").replace(/\/$/, "");
     this.timeoutMs = options.timeoutMs ?? 2000;
     this.debug = options.debug ?? process.env.MARGOVIA_DEBUG === "1";
   }
@@ -310,8 +312,10 @@ export class Margovia {
         const latencyMs = Date.now() - started;
 
         if (run) {
-          await agentCost.trackOpenAICost(run.id, response, request, latencyMs);
-          await agentCost.safeCompleteRun(run.id, { outcome: runInput.outcome });
+          await agentCost.trackOpenAICost(run.id, response, request, latencyMs, undefined, {
+            completeRun: true,
+            outcome: runInput.outcome
+          });
         }
 
         return response;
@@ -368,8 +372,10 @@ export class Margovia {
         const latencyMs = Date.now() - started;
 
         if (run) {
-          await margovia.trackAnthropicCost(run.id, response, request, latencyMs);
-          await margovia.safeCompleteRun(run.id, { outcome: runInput.outcome });
+          await margovia.trackAnthropicCost(run.id, response, request, latencyMs, undefined, {
+            completeRun: true,
+            outcome: runInput.outcome
+          });
         }
 
         return response;
@@ -386,7 +392,14 @@ export class Margovia {
     return client;
   }
 
-  private async trackOpenAICost(runId: string, response: OpenAIResponseLike, request: { model?: string } | undefined, latencyMs: number, label?: string) {
+  private async trackOpenAICost(
+    runId: string,
+    response: OpenAIResponseLike,
+    request: { model?: string } | undefined,
+    latencyMs: number,
+    label?: string,
+    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">
+  ) {
     const usage = response.usage;
     await this.safeTrackCost({
       runId,
@@ -398,7 +411,8 @@ export class Margovia {
       cachedInputTokens: usage?.prompt_tokens_details?.cached_tokens,
       reasoningTokens: usage?.completion_tokens_details?.reasoning_tokens,
       latencyMs,
-      status: "success"
+      status: "success",
+      ...terminal
     });
   }
 
@@ -438,7 +452,14 @@ export class Margovia {
     }
   }
 
-  private async trackAnthropicCost(runId: string, response: AnthropicResponseLike, request: { model?: string } | undefined, latencyMs: number, label?: string) {
+  private async trackAnthropicCost(
+    runId: string,
+    response: AnthropicResponseLike,
+    request: { model?: string } | undefined,
+    latencyMs: number,
+    label?: string,
+    terminal?: Pick<TrackCostInput, "completeRun" | "outcome">
+  ) {
     const usage = response.usage;
     await this.safeTrackCost({
       runId,
@@ -452,16 +473,9 @@ export class Margovia {
       cacheCreationInputTokens1h: usage?.cache_creation?.ephemeral_1h_input_tokens,
       cachedInputTokens: usage?.cache_read_input_tokens,
       latencyMs,
-      status: "success"
+      status: "success",
+      ...terminal
     });
-  }
-
-  private async safeCompleteRun(runId: string, input: CompleteRunInput = {}) {
-    try {
-      await this.completeRun(runId, input);
-    } catch (error) {
-      this.log(`Failed to complete run: ${error instanceof Error ? error.message : String(error)}`);
-    }
   }
 
   private async safeFailRun(runId: string, input: FailRunInput = {}) {

@@ -47,6 +47,15 @@ function idString(value: string | number | null | undefined): string | undefined
   return value == null ? undefined : String(value);
 }
 
+function customerIdString(value: string | number | null | undefined): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  const id = String(value);
+  return id.includes("_") ? id : `customer_${id}`;
+}
+
 function warnTrackingFailure(action: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   console.warn(`[margovia] ${action} failed: ${message}`);
@@ -64,7 +73,7 @@ export async function createTrackedAnthropicMessage(options: TrackAiRunOptions, 
     run = await margovia.startRun({
       name: options.name,
       userId: idString(options.userId),
-      customerId: idString(options.customerId ?? options.userId),
+      customerId: customerIdString(options.customerId),
       customerName: options.customerName ?? undefined,
       customerPlan: options.customerPlan,
       properties: options.properties,
@@ -106,4 +115,3 @@ export async function createTrackedAnthropicMessage(options: TrackAiRunOptions, 
     throw error;
   }
 }
-

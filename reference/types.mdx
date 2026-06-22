@@ -18,6 +18,8 @@ type StartRunInput = {
 };
 ```
 
+`customerId` is your stable customer, workspace, organization, tenant, or billing customer key. Prefer namespaced values such as `workspace_123`, `org_abc`, or `stripe_cus_123`. Margovia stores this value exactly as sent.
+
 ## `TrackCostInput`
 
 ```ts
@@ -36,10 +38,14 @@ type TrackCostInput = {
   costUsd?: number;
   latencyMs?: number;
   status?: string;
+  completeRun?: boolean;
+  outcome?: string;
   metadata?: Record<string, unknown>;
   createdAt?: string;
 };
 ```
+
+Use `completeRun` only when a cost event is also the terminal event for the run. Wrapped provider calls use this internally for one-call workflows. For multi-step workflows, complete the run after all steps finish.
 
 ## `TrackOutcomeInput`
 

@@ -70,3 +70,14 @@ support_reply
 ```
 
 If no API key is configured, the SDK becomes a no-op and logs only when `MARGOVIA_DEBUG=1`.
+
+## Attribution checklist
+
+Send attribution from your app's source of truth:
+
+- `customerId`: stable account, workspace, org, tenant, or billing customer ID
+- `customerName`: readable display name
+- `customerPlan`: current plan name and monthly revenue
+- `userId`: optional actor inside that customer account
+
+Prefer namespaced IDs such as `workspace_123`, `org_abc`, or `stripe_cus_123`. Margovia stores the ID exactly as sent so it can join back to your app and billing data.

@@ -15,7 +15,7 @@ const margovia = new Margovia();
 const run = await margovia.startRun({
   name: "generate_report",
   userId: "user_123",
-  customerId: "client_123",
+  customerId: "workspace_123",
   customerName: "Acme Inc.",
   customerPlan: { name: "enterprise", monthlyUsd: 499 },
   properties: {
@@ -32,6 +32,8 @@ await run.trackCost({
 
 await run.complete({ outcome: "report_generated" });
 ```
+
+Manual runs stay `running` until you explicitly call `run.complete(...)` or `run.fail(...)`. Cost events alone do not close the run.
 
 ## Track failures
 
@@ -54,8 +56,50 @@ try {
 ```ts
 const result = await margovia.track({
   name: "generate_report",
-  customerId: "client_123",
+  customerId: "workspace_123",
   outcome: "report_generated",
   fn: async () => generateReport()
 });
 ```
+
+`track` is the safest option for custom workflows because it automatically completes the run on success and fails it when `fn` throws.
+
+## Track multiple provider calls
+
+Use one manual run when several calls belong to the same user-facing workflow.
+
+```ts
+const run = await margovia.startRun({
+  name: "research_report",
+  customerId: `workspace_${workspace.id}`,
+  customerName: workspace.name,
+  customerPlan: { name: workspace.plan, monthlyUsd: workspace.planMonthlyUsd }
+});
+
+try {
+  await run.step("outline", () => createOutline());
+  await run.step("source_search", () => searchSources());
+  await run.step("final_draft", () => draftReport());
+
+  await run.complete({ outcome: "report_generated" });
+} catch (error) {
+  await run.fail({
+    error: error instanceof Error ? error.message : "Unknown error"
+  });
+  throw error;
+}
+```
+
+`run.step(...)` attaches wrapped provider calls to the existing run instead of creating separate runs.
+
+## Customer IDs
+
+Send a stable, namespaced customer ID:
+
+```ts
+customerId: `workspace_${workspace.id}`
+customerId: `org_${organization.id}`
+customerId: `stripe_${stripeCustomer.id}`
+```
+
+Avoid raw IDs like `"1"` unless that is the stable ID you use across your whole system. Margovia will not rewrite the value.

@@ -25,7 +25,7 @@ app.post("/api/summarize", async (req, res) => {
     metadata: {
       margoviaName: "summarize_contract",
       margoviaOutcome: "summary_created",
-      customerId: workspace.id,
+      customerId: `workspace_${workspace.id}`,
       customerName: workspace.name,
       customerPlan: customerPlan.name,
       customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
@@ -48,4 +48,3 @@ async function loadWorkspace(workspaceId: string): Promise<Workspace> {
 function buildSummaryMessages(document: string): Anthropic.Messages.MessageParam[] {
   return [{ role: "user", content: `Summarize this contract:\n\n${document}` }];
 }
-

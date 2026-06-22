@@ -1,0 +1,101 @@
+---
+title: Troubleshooting
+description: Debug missing runs, stuck runs, attribution, and local API issues.
+---
+
+## No runs appear
+
+Check these first:
+
+- `MARGOVIA_API_KEY` is set in the server process
+- The SDK runs in backend code, not browser code
+- The API key belongs to the Margovia project you are viewing
+- Your provider call actually executes after the wrapper is created
+- `MARGOVIA_BASE_URL` is not accidentally pointing at localhost in production
+
+Enable debug logs temporarily:
+
+```env
+MARGOVIA_DEBUG=1
+```
+
+Without `MARGOVIA_API_KEY`, the SDK becomes a no-op and does not send events.
+
+## Runs stay running
+
+Wrapped provider calls and `margovia.track(...)` complete or fail runs automatically.
+
+Manual runs do not. If you call `startRun(...)`, you must eventually call one of:
+
+```ts
+await run.complete({ outcome: "reply_generated" });
+await run.fail({ error: "Provider timed out" });
+```
+
+Cost events alone do not close a manual run. This is intentional because a workflow can have several provider calls or tool calls before it is done.
+
+## Customer margin is missing
+
+Margin requires both cost and revenue context.
+
+Send customer attribution:
+
+```ts
+{
+  customerId: `workspace_${workspace.id}`,
+  customerName: workspace.name,
+  customerPlan: { name: "pro", monthlyUsd: 99 }
+}
+```
+
+If only `customerId` is sent, Margovia can group usage but cannot calculate margin until plan revenue is available.
+
+## Customer IDs look wrong
+
+Margovia stores `customerId` exactly as sent by your app.
+
+If you send `"1"`, the dashboard will show and group by `"1"`. Prefer namespaced IDs:
+
+```ts
+customerId: `workspace_${workspace.id}`
+customerId: `org_${organization.id}`
+customerId: `stripe_${stripeCustomer.id}`
+```
+
+Use `customerName` or dashboard aliases for display names. Do not change `customerId` just to make the UI prettier.
+
+## Costs look too low or too high
+
+Check:
+
+- The provider response includes usage fields
+- The model name matches Margovia pricing
+- Cached input and reasoning token fields are being reported by the provider
+- Manual `costUsd` values are in USD, not cents
+
+For custom providers, send `costUsd` explicitly:
+
+```ts
+await run.trackCost({
+  provider: "custom",
+  label: "reranker",
+  costUsd: 0.0042,
+  status: "success"
+});
+```
+
+## Local development hits the wrong API
+
+The SDK defaults to:
+
+```env
+MARGOVIA_BASE_URL=https://api.margovia.com
+```
+
+For a local API:
+
+```env
+MARGOVIA_BASE_URL=http://localhost:4010
+```
+
+Remove `MARGOVIA_BASE_URL` in production unless you intentionally use a custom API host.

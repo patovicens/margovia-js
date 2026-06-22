@@ -34,6 +34,8 @@ await margovia.startRun(input: StartRunInput)
 
 Starts a run and returns a `MargoviaRun`.
 
+Manual runs stay `running` until `run.complete(...)` or `run.fail(...)` is called.
+
 ## `track`
 
 ```ts
@@ -47,6 +49,8 @@ await margovia.track({
 
 Wraps a function in a run. The run is completed on success and failed on error.
 
+Use this for custom workflows when you want automatic lifecycle handling without provider-specific wrappers.
+
 ## `wrapOpenAI`
 
 ```ts
@@ -54,6 +58,8 @@ const openai = margovia.wrapOpenAI(client, options);
 ```
 
 Wraps `client.chat.completions.create`.
+
+With `autoTrack: true`, the wrapper starts a run, records the provider cost event, and completes the run after the provider call succeeds.
 
 ## `wrapAnthropic`
 
@@ -63,6 +69,8 @@ const anthropic = margovia.wrapAnthropic(client, options);
 
 Wraps `client.messages.create`.
 
+With `autoTrack: true`, the wrapper starts a run, records the provider cost event, and completes the run after the provider call succeeds.
+
 ## `trackCost`
 
 ```ts
@@ -70,6 +78,8 @@ await margovia.trackCost(input: TrackCostInput)
 ```
 
 Records a cost event for an existing run.
+
+Cost events do not close manual runs unless `completeRun: true` is explicitly sent. In normal manual workflows, call `run.complete(...)` after all work is finished.
 
 ## `trackOutcome`
 

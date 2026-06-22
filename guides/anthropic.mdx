@@ -19,17 +19,19 @@ await anthropic.messages.create({
   model: "claude-sonnet-4-20250514",
   max_tokens: 800,
   messages,
-  metadata: {
-    margoviaName: "summarize_contract",
-    margoviaOutcome: "summary_created",
-    userId: "user_123",
-    customerId: "workspace_456",
+    metadata: {
+      margoviaName: "summarize_contract",
+      margoviaOutcome: "summary_created",
+      userId: "user_123",
+      customerId: "workspace_456",
     customerName: "Acme Inc.",
     customerPlan: "enterprise",
     customerPlanMonthlyUsd: "499"
   }
 });
 ```
+
+Use a stable, namespaced `customerId`. Margovia stores this value exactly as sent and uses it as the customer grouping key.
 
 The wrapper records:
 
@@ -47,11 +49,13 @@ The wrapper records:
 ```ts
 const anthropic = margovia.wrapAnthropic(new Anthropic(), {
   getRunInput: (_request, [body]) => ({
-    name: "contract_summary",
-    customerId: body.workspace.id,
+      name: "contract_summary",
+    customerId: `workspace_${body.workspace.id}`,
     customerName: body.workspace.name,
     customerPlan: { name: "enterprise", monthlyUsd: 499 },
     outcome: "summary_created"
   })
 });
 ```
+
+Use `getRunInput` when customer or plan data comes from your authenticated request context instead of provider metadata.

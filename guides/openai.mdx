@@ -18,17 +18,19 @@ const openai = margovia.wrapOpenAI(new OpenAI(), {
 await openai.chat.completions.create({
   model: "gpt-5-mini",
   messages,
-  metadata: {
-    margoviaName: "draft_support_reply",
-    margoviaOutcome: "message_created",
-    userId: "user_123",
-    customerId: "workspace_456",
+    metadata: {
+      margoviaName: "draft_support_reply",
+      margoviaOutcome: "message_created",
+      userId: "user_123",
+      customerId: "workspace_456",
     customerName: "Northstar Agency",
     customerPlan: "pro",
     customerPlanMonthlyUsd: "99"
   }
 });
 ```
+
+Use a stable, namespaced `customerId`. Margovia keeps this ID exactly as sent so it can join back to your app or billing data.
 
 The wrapper records:
 
@@ -47,14 +49,16 @@ Use `getRunInput` when your customer metadata lives outside the provider request
 ```ts
 const openai = margovia.wrapOpenAI(new OpenAI(), {
   getRunInput: (_request, [body]) => ({
-    name: "support_reply",
-    customerId: body.workspace.id,
+      name: "support_reply",
+    customerId: `workspace_${body.workspace.id}`,
     customerName: body.workspace.name,
     customerPlan: { name: body.workspace.plan, monthlyUsd: 99 },
     outcome: "reply_generated"
   })
 });
 ```
+
+Use `getRunInput` when metadata is not available on the provider request or when you want to derive attribution from your authenticated app context.
 
 ## Manual run context
 
@@ -75,3 +79,5 @@ await run.step("openai_reply", () =>
 
 await run.complete({ outcome: "ticket_resolved" });
 ```
+
+When you open a manual run, you own its lifecycle. Always call `run.complete(...)` or `run.fail(...)` after the workflow finishes.

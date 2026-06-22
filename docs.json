@@ -16,7 +16,7 @@
       },
       {
         "group": "Guides",
-        "pages": ["guides/openai", "guides/anthropic", "guides/manual-tracking", "guides/environment-variables", "guides/local-development"]
+        "pages": ["guides/openai", "guides/anthropic", "guides/customer-attribution", "guides/manual-tracking", "guides/environment-variables", "guides/local-development", "guides/troubleshooting"]
       },
       {
         "group": "Reference",

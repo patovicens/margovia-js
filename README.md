@@ -47,6 +47,21 @@ const plans = {
 
 Margovia calculates AI cost from provider usage and model pricing. Your app supplies customer identity and what that customer pays you.
 
+## Customer attribution
+
+Send the stable customer/account key from your app. Margovia preserves this value exactly and uses it for grouping, joins, aliases, and margin reporting.
+
+Recommended IDs:
+
+```ts
+customerId: `workspace_${workspace.id}`
+customerId: `org_${organization.id}`
+customerId: `stripe_${stripeCustomer.id}`
+customerId: `tenant_${tenant.id}`
+```
+
+Avoid raw values like `"1"` or `"42"` when possible. If your internal ID is numeric, prefix it before sending, such as `workspace_42`. Use `customerName` for display and aliases; do not change `customerId` just to make the dashboard prettier.
+
 ## OpenAI wrapper
 
 ```ts
@@ -65,13 +80,15 @@ await openai.chat.completions.create({
   metadata: {
     margoviaName: "support_reply",
     margoviaOutcome: "reply_generated",
-    customerId: workspace.id,
+    customerId: `workspace_${workspace.id}`,
     customerName: workspace.name,
     customerPlan: customerPlan.name,
     customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
   },
 });
 ```
+
+Use stable, namespaced customer IDs such as `workspace_123`, `org_abc`, or `stripe_cus_123`. Margovia stores the ID exactly as sent so it can join back to your app, billing system, logs, or warehouse.
 
 ## Anthropic wrapper
 
@@ -92,7 +109,7 @@ await anthropic.messages.create({
   metadata: {
     margoviaName: "summarize_contract",
     margoviaOutcome: "summary_created",
-    customerId: workspace.id,
+    customerId: `workspace_${workspace.id}`,
     customerName: workspace.name,
     customerPlan: customerPlan.name,
     customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
@@ -107,7 +124,7 @@ Use manual runs for custom providers, tools, or workflows where you want explici
 ```ts
 const run = await margovia.startRun({
   name: "generate_report",
-  customerId: "client_123",
+  customerId: "workspace_123",
   customerName: "Acme Inc.",
   customerPlan: { name: "enterprise", monthlyUsd: 499 },
 });
@@ -121,12 +138,14 @@ await run.trackCost({
 await run.complete({ outcome: "report_generated" });
 ```
 
+Manual runs remain `running` until you call `run.complete(...)` or `run.fail(...)`. Use `margovia.track(...)` if you want the SDK to handle completion and failure around a function.
+
 When you want wrapped provider calls inside a manual run, execute them inside `run.step(...)` so the SDK can attach the cost event to the correct run:
 
 ```ts
 const run = await margovia.startRun({
   name: "support_reply",
-  customerId: "client_123",
+  customerId: "workspace_123",
   customerPlan: { name: "pro", monthlyUsd: 99 },
 });
 

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     metadata: {
       margoviaName: "support_reply",
       margoviaOutcome: "reply_generated",
-      customerId: workspace.id,
+      customerId: `workspace_${workspace.id}`,
       customerName: workspace.name,
       customerPlan: customerPlan.name,
       customerPlanMonthlyUsd: String(customerPlan.monthlyUsd),
@@ -47,4 +47,3 @@ function buildSupportMessages(ticket: string): OpenAI.Chat.Completions.ChatCompl
     { role: "user", content: ticket },
   ];
 }
-
