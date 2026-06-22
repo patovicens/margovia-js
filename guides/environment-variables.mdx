@@ -11,17 +11,17 @@ MARGOVIA_API_KEY=mg_live_xxx
 
 The API key authenticates events sent to Margovia. Keep it server-side.
 
-If `MARGOVIA_API_KEY` is missing, the SDK becomes a no-op. This is useful for local development but means no runs or cost events will appear in Margovia.
+If `MARGOVIA_API_KEY` is missing, the SDK becomes a no-op. Installing the SDK alone sends nothing.
+
+When `MARGOVIA_API_KEY` is configured, the SDK sends events to Margovia Cloud at `https://api.margovia.com` unless `MARGOVIA_BASE_URL` overrides it.
 
 ## Optional
 
 ```env
-MARGOVIA_BASE_URL=https://api.margovia.com
+MARGOVIA_BASE_URL=https://your-api.example.com
 ```
 
-The SDK defaults to `https://api.margovia.com`.
-
-Set `MARGOVIA_BASE_URL` only for local development, staging, or self-hosted API testing:
+Set `MARGOVIA_BASE_URL` only if you self-host Margovia, run a compatible receiver, or test against a local API:
 
 ```env
 MARGOVIA_BASE_URL=http://localhost:4010

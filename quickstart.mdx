@@ -27,7 +27,9 @@ yarn add @margovia/sdk
 MARGOVIA_API_KEY=mg_live_xxx
 ```
 
-For local API testing, point the SDK at your local or Railway API:
+Installing the SDK alone sends nothing. When `MARGOVIA_API_KEY` is configured, the SDK sends events to Margovia Cloud by default.
+
+If you self-host Margovia, run a compatible receiver, or test against a local API, set `MARGOVIA_BASE_URL`:
 
 ```env
 MARGOVIA_BASE_URL=http://localhost:4010

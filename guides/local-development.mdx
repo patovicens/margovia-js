@@ -21,8 +21,10 @@ This is the recommended way to test the SDK from another local product, such as 
 
 ## Production
 
-For production, point `MARGOVIA_BASE_URL` at your deployed API:
+For Margovia Cloud, remove `MARGOVIA_BASE_URL` in production and keep only your project API key:
 
 ```env
-MARGOVIA_BASE_URL=https://api.margovia.com
+MARGOVIA_API_KEY=mg_live_xxx
 ```
+
+Set `MARGOVIA_BASE_URL` in production only if you self-host Margovia or run a compatible receiver.
