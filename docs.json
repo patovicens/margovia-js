@@ -11,16 +11,31 @@
   "navigation": {
     "groups": [
       {
-        "group": "Get started",
-        "pages": ["introduction", "quickstart", "installation", "concepts", "guides/integration-patterns"]
-      },
-      {
-        "group": "Guides",
-        "pages": ["guides/openai", "guides/anthropic", "guides/customer-attribution", "guides/manual-tracking", "guides/environment-variables", "guides/local-development", "guides/troubleshooting"]
-      },
-      {
-        "group": "Reference",
-        "pages": ["reference/client", "reference/run", "reference/types"]
+        "group": "SDK",
+        "pages": [
+          "introduction",
+          "quickstart",
+          {
+            "group": "Setup",
+            "expanded": false,
+            "pages": ["installation", "guides/environment-variables", "guides/local-development", "concepts"]
+          },
+          {
+            "group": "Provider guides",
+            "expanded": true,
+            "pages": ["guides/openai", "guides/anthropic", "guides/customer-attribution"]
+          },
+          {
+            "group": "Advanced",
+            "expanded": false,
+            "pages": ["guides/integration-patterns", "guides/manual-tracking", "guides/troubleshooting"]
+          },
+          {
+            "group": "Reference",
+            "expanded": false,
+            "pages": ["reference/client", "reference/run", "reference/types"]
+          }
+        ]
       }
     ]
   },
