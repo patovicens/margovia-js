@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Margovia",
-  "favicon": "/favicon.svg",
+  "favicon": "/margovia-icon-dark.png",
   "colors": {
     "primary": "#10a37f",
     "light": "#40d6a5",
@@ -25,8 +25,8 @@
     ]
   },
   "logo": {
-    "light": "/logo-light.svg",
-    "dark": "/logo-dark.svg"
+    "light": "/margovia-icon-dark.png",
+    "dark": "/margovia-icon-dark.png"
   },
   "navbar": {
     "links": [
