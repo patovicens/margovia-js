@@ -7,10 +7,10 @@ description: Debug missing runs, stuck runs, attribution, and local API issues.
 
 Check these first:
 
-- `MARGOVIA_API_KEY` is set in the server process
+- `MARGOVIA_API_KEY` is set in the backend process that calls the model provider
 - The SDK runs in backend code, not browser code
 - The API key belongs to the Margovia project you are viewing
-- Your provider call actually executes through the tracked adapter, wrapper, or provider helper
+- Your provider call actually executes through the tracked client, wrapper, or provider helper
 - `MARGOVIA_BASE_URL` is not accidentally pointing at localhost in production
 
 Enable debug logs temporarily:
@@ -19,11 +19,11 @@ Enable debug logs temporarily:
 MARGOVIA_DEBUG=1
 ```
 
-Without `MARGOVIA_API_KEY`, the SDK becomes a no-op and does not send events.
+Without `MARGOVIA_API_KEY`, the SDK skips Margovia tracking and does not send events.
 
 ## Runs stay running
 
-Tracked adapters, wrapped provider calls, provider helpers, and `margovia.track(...)` complete or fail runs automatically.
+Tracked clients, wrapped provider calls, provider helpers, and `margovia.track(...)` complete or fail runs automatically.
 
 Manual runs do not. If you call `startRun(...)`, you must eventually call one of:
 
@@ -44,6 +44,8 @@ Common causes:
 - You called `startRun(...)` and `complete(...)` but never called `run.trackCost(...)`
 - The provider response did not include usage fields
 
+For a first integration, avoid this whole class of issue by using `margovia.openai(client)` or `margovia.anthropic(client)`.
+
 Bad:
 
 ```ts
@@ -55,7 +57,7 @@ await margovia.track({
 
 If `anthropic` is not wrapped, Margovia cannot read token usage.
 
-Fix with the tracked adapter:
+Fix with the tracked client:
 
 ```ts
 const anthropic = margovia.anthropic(new Anthropic());

@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install Margovia in Node.js and server-side JavaScript runtimes.
+description: Install Margovia in Node.js and backend JavaScript runtimes.
 ---
 
 ## Package
@@ -22,6 +22,14 @@ pnpm add @anthropic-ai/sdk
 
 ## Runtime setup
 
+Set your Margovia API key in the backend app that calls OpenAI, Anthropic, or another provider:
+
+```env
+MARGOVIA_API_KEY=mg_live_xxx
+```
+
+Then create the client:
+
 ```ts
 import { Margovia } from "@margovia/sdk";
 
@@ -36,6 +44,8 @@ You can also rely on environment variables:
 const margovia = new Margovia();
 ```
 
+For Margovia Cloud, you do not need to set `MARGOVIA_BASE_URL`. Set it only for local development, self-hosting, or a compatible receiver.
+
 ## Server-only
 
-The SDK reads server-side secrets and uses Node APIs. Do not bundle it into client-side browser code.
+The SDK reads backend secrets and uses Node APIs. Do not bundle it into browser code.

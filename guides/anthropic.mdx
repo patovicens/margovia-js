@@ -3,7 +3,7 @@ title: Anthropic
 description: Wrap Anthropic messages and capture usage automatically.
 ---
 
-## Recommended: tracked adapter
+## Recommended: tracked Anthropic client
 
 Use this when one Anthropic message should become one Margovia run.
 
@@ -28,11 +28,11 @@ await anthropic.messages.create({
 });
 ```
 
-The adapter starts a run, calls `client.messages.create(request)`, reads `response.usage`, records the cost event, and completes or fails the run.
+The tracked client starts a run, calls `client.messages.create(request)`, reads `response.usage`, records the cost event, and completes or fails the run.
 
 Use a stable, namespaced `customerId`. Margovia stores this value exactly as sent and uses it as the customer grouping key.
 
-The adapter records:
+The tracked client records:
 
 - `provider: "anthropic"`
 - model
@@ -69,7 +69,7 @@ await anthropic.messages.create({
 });
 ```
 
-This is useful for wide migrations, but the tracked adapter is clearer for new code.
+This is useful for wide migrations, but the tracked Anthropic client is clearer for new code.
 
 ## Custom run input
 
@@ -89,7 +89,7 @@ Use `getRunInput` when customer or plan data comes from your authenticated reque
 
 ## Explicit helper
 
-Use `trackAnthropic(...)` when you already have a helper function around `anthropic.messages.create(...)`.
+Use `trackAnthropic(...)` when you already have your own helper function around Anthropic calls.
 
 ```ts
 const response = await margovia.trackAnthropic({
@@ -117,4 +117,4 @@ await margovia.track({
 });
 ```
 
-That creates a run, but the raw client does not report token usage to Margovia. Use `wrapAnthropic(...)`, `trackAnthropic(...)`, or `run.trackCost(...)`.
+That creates a run, but the raw client does not report token usage to Margovia. Use `margovia.anthropic(client)`, `wrapAnthropic(...)`, `trackAnthropic(...)`, or `run.trackCost(...)`.

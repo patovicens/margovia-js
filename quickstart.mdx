@@ -23,6 +23,13 @@ yarn add @margovia/sdk
 
 ## Configure
 
+You need two kinds of keys:
+
+- A Margovia API key from your Margovia project settings. This lets the SDK send usage to Margovia.
+- Your model provider key, such as `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. Margovia does not call OpenAI or Anthropic for you.
+
+Add the Margovia key to the backend app where you call the model provider:
+
 ```env
 MARGOVIA_API_KEY=mg_live_xxx
 ```
@@ -37,9 +44,9 @@ MARGOVIA_BASE_URL=http://localhost:4010
 
 ## Track your first OpenAI call
 
-The fastest path is `margovia.openai(client)`.
+The easiest OpenAI setup is `margovia.openai(client)`.
 
-This makes one OpenAI call become one Margovia run with one cost event.
+Think of it as a tracked OpenAI client. You still call OpenAI, but Margovia records the workflow name, customer, token usage, and cost.
 
 ```ts
 import OpenAI from "openai";
@@ -64,9 +71,11 @@ await openai.chat.completions.create({
 });
 ```
 
-The adapter starts a Margovia run, calls OpenAI, records the cost event from provider usage, and completes the run after the provider call succeeds.
+The tracked client starts a Margovia run, calls OpenAI, records the cost event from provider usage, and completes the run after the provider call succeeds.
 
 ## Track your first Anthropic call
+
+The Anthropic setup is the same idea. Wrap the Anthropic client once, then call `anthropic.messages.create(...)` with your Margovia fields plus the real Anthropic request.
 
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
@@ -93,7 +102,7 @@ await anthropic.messages.create({
 
 ## If you already have a helper
 
-Use `trackAnthropic(...)` or `trackOpenAI(...)` when you already have a provider helper function and want explicit tracking in one place.
+Use `trackAnthropic(...)` or `trackOpenAI(...)` only when you already have your own provider helper function and want to keep that shape.
 
 ```ts
 const response = await margovia.trackAnthropic({
@@ -167,13 +176,20 @@ See [Integration patterns](/guides/integration-patterns) for unsupported provide
 
 ## Verify
 
-Open Margovia and look for a run named:
+Run the code once, then open Margovia and look for a run named:
 
 ```text
 support_reply
 ```
 
-If no API key is configured, the SDK becomes a no-op and logs only when `MARGOVIA_DEBUG=1`.
+If no API key is configured, the SDK skips Margovia tracking and does not send events.
+
+If you do not see a run, check:
+
+- The code ran on your backend, not in the browser
+- `MARGOVIA_API_KEY` is set in the same process that calls OpenAI or Anthropic
+- The API key belongs to the Margovia project you are viewing
+- `MARGOVIA_BASE_URL` is not pointing at a local API by accident
 
 ## Attribution checklist
 

@@ -336,7 +336,7 @@ export class Margovia {
 
   async startRun(input: StartRunInput) {
     if (!this.apiKey) {
-      this.log("No MARGOVIA_API_KEY configured; using no-op run.");
+      this.log("No MARGOVIA_API_KEY configured; skipping Margovia tracking.");
       return new MargoviaRun(this, "noop", true);
     }
 

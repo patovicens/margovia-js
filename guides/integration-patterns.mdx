@@ -3,10 +3,10 @@ title: Integration patterns
 description: Pick the right Margovia SDK API for your app.
 ---
 
-Margovia tracks two related things:
+Margovia tracks two related things. You do not need to memorize these terms to start, but they explain what you will see in the dashboard:
 
-- **Runs**: a workflow happened, such as `support_reply` or `generate_weekly_report`.
-- **Cost events**: a provider call or tool call inside that run spent money.
+- **Run**: one workflow happened, such as `support_reply` or `generate_weekly_report`.
+- **Cost event**: one provider call or tool call inside that run spent money.
 
 This distinction matters. A run without cost events proves that work happened, but it does not tell Margovia what OpenAI, Anthropic, or another provider charged.
 
@@ -22,9 +22,9 @@ Use this table first:
 | One product workflow has multiple provider/tool calls | `margovia.track(...)` around wrapped clients or manual cost calls |
 | You use a custom provider, search API, queue, or tool | `startRun(...)`, `run.trackCost(...)`, `run.complete(...)` |
 
-## Pattern 1: tracked provider adapter
+## Pattern 1: tracked provider client
 
-This is the simplest integration. Create a tracked adapter once, then pass Margovia run fields plus the real provider request each time.
+This is the simplest integration. Create a tracked OpenAI or Anthropic client once, then pass Margovia fields plus the real provider request each time.
 
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
@@ -50,7 +50,7 @@ await anthropic.messages.create({
 What happens:
 
 - Margovia starts a run named `score_tweet`.
-- The adapter calls Anthropic with `request`.
+- The tracked client calls Anthropic with `request`.
 - Anthropic returns token usage.
 - The SDK sends a cost event using Anthropic usage.
 - The run is completed with outcome `tweet_scored`.
@@ -106,11 +106,11 @@ Use this when:
 Do not use this when:
 
 - One user workflow has several provider calls and you want them grouped under one run.
-- Your customer metadata does not fit in provider `metadata`. Use the tracked adapter or explicit provider helper instead.
+- Your customer metadata does not fit in provider `metadata`. Use the tracked provider client or explicit provider helper instead.
 
 ## Pattern 3: explicit provider helper
 
-Use this when you want your own helper function, like `createTrackedAnthropicMessage(...)`, but you do not want to manually call `startRun`, `trackCost`, and `complete`.
+Use this when you already have your own helper function, like `createTrackedAnthropicMessage(...)`, but you do not want to manually call `startRun`, `trackCost`, and `complete`.
 
 ```ts
 const response = await margovia.trackAnthropic({
@@ -135,7 +135,7 @@ Use this when:
 
 - You already have a helper function around provider calls.
 - You want attribution to come from your app code instead of provider metadata.
-- You want a clear explicit call site for tracking.
+- You are okay with the callback style.
 
 Use a raw provider client inside `trackOpenAI(...)` or `trackAnthropic(...)`. Do not pass an already-wrapped client into these helpers or you may double-report the same provider call.
 

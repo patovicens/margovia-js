@@ -5,7 +5,9 @@ description: Track AI cost, customer attribution, and outcome economics from Nod
 
 Margovia helps SaaS teams understand whether AI features are profitable by customer, plan, and workflow.
 
-The JavaScript SDK is the instrumentation layer. Install it in the backend that already calls OpenAI, Anthropic, or another model provider, then send usage and attribution events to Margovia.
+The JavaScript SDK is the small tracking library you install in your backend. Put it next to the code that already calls OpenAI, Anthropic, or another model provider. It sends usage and attribution events to Margovia.
+
+Installing the SDK alone does not send anything. Add `MARGOVIA_API_KEY` when you are ready to send events to Margovia Cloud. Set `MARGOVIA_BASE_URL` only for local development, self-hosting, or a compatible receiver.
 
 ## What the SDK captures
 
@@ -17,16 +19,18 @@ The JavaScript SDK is the instrumentation layer. Install it in the backend that 
 - Manual or provider-reported cost
 - Outcomes and business value
 
+The SDK does not call model providers for you. Your app still owns the OpenAI, Anthropic, or other provider request. Margovia records what happened and shows it in the dashboard.
+
 ## Where it runs
 
-Use the SDK in server-side code only:
+Use the SDK in backend code only:
 
 - Next.js route handlers and server actions
 - Express, Fastify, Hono, and Remix actions
 - Worker queues and background jobs
 - Internal tools that call model providers
 
-Do not use the SDK in browser code. `MARGOVIA_API_KEY` is a server-side secret.
+Do not use the SDK in browser code. `MARGOVIA_API_KEY` is a backend secret.
 
 ## Open source boundary
 

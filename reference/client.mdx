@@ -26,7 +26,7 @@ If omitted, the client reads:
 - `MARGOVIA_BASE_URL`
 - `MARGOVIA_DEBUG`
 
-Installing the SDK alone sends nothing. Without `MARGOVIA_API_KEY`, the client is a no-op. With `MARGOVIA_API_KEY`, it sends to Margovia Cloud unless `baseUrl` or `MARGOVIA_BASE_URL` points at a self-hosted or compatible receiver.
+Installing the SDK alone sends nothing. Without `MARGOVIA_API_KEY`, the client skips Margovia tracking. With `MARGOVIA_API_KEY`, it sends to Margovia Cloud unless `baseUrl` or `MARGOVIA_BASE_URL` points at a self-hosted or compatible receiver.
 
 ## `openai`
 
@@ -43,7 +43,7 @@ await openai.chat.completions.create({
 });
 ```
 
-Creates a tracked OpenAI adapter. The adapter starts a run, calls `client.chat.completions.create(request)`, records cost from the response usage, and completes or fails the run.
+Creates a tracked OpenAI client. The tracked client starts a run, calls `client.chat.completions.create(request)`, records cost from the response usage, and completes or fails the run.
 
 Use this for the simplest one-call OpenAI integration.
 
@@ -63,7 +63,7 @@ await anthropic.messages.create({
 });
 ```
 
-Creates a tracked Anthropic adapter. The adapter starts a run, calls `client.messages.create(request)`, records cost from the response usage, and completes or fails the run.
+Creates a tracked Anthropic client. The tracked client starts a run, calls `client.messages.create(request)`, records cost from the response usage, and completes or fails the run.
 
 Use this for the simplest one-call Anthropic integration.
 

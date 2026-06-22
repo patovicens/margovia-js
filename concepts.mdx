@@ -5,7 +5,11 @@ description: Understand runs, cost events, outcomes, and customer attribution.
 
 ## Run
 
-A run is one AI workflow execution, such as `support_reply`, `contract_summary`, or `generate_report`.
+A run is one AI workflow execution. Examples:
+
+- `support_reply`
+- `contract_summary`
+- `generate_report`
 
 Runs group cost events and outcomes under one business action.
 
@@ -23,7 +27,7 @@ If you use `startRun(...)` manually, always call `run.complete(...)` or `run.fai
 
 ## Cost event
 
-A cost event records one provider call, tool call, or manually-priced operation.
+A cost event records the money spent inside a run. Usually this is one model provider call, tool call, or manually priced operation.
 
 Cost events can include:
 
@@ -35,7 +39,7 @@ Cost events can include:
 - Manual `costUsd`
 - Latency and status
 
-Runs and cost events are separate. A run can exist without cost events, but then Margovia cannot calculate provider spend for that run.
+Runs and cost events are separate. A run can exist without cost events, but then Margovia cannot calculate provider spend for that run. For normal OpenAI and Anthropic calls, use `margovia.openai(client)` or `margovia.anthropic(client)` so cost events are recorded automatically.
 
 ## Outcome
 

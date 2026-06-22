@@ -3,7 +3,7 @@ title: OpenAI
 description: Wrap OpenAI chat completions and capture usage automatically.
 ---
 
-## Recommended: tracked adapter
+## Recommended: tracked OpenAI client
 
 Use this when one OpenAI call should become one Margovia run.
 
@@ -27,11 +27,11 @@ await openai.chat.completions.create({
 });
 ```
 
-The adapter starts a run, calls `client.chat.completions.create(request)`, reads `response.usage`, records the cost event, and completes or fails the run.
+The tracked client starts a run, calls `client.chat.completions.create(request)`, reads `response.usage`, records the cost event, and completes or fails the run.
 
 Use a stable, namespaced `customerId`. Margovia keeps this ID exactly as sent so it can join back to your app or billing data.
 
-The adapter records:
+The tracked client records:
 
 - `provider: "openai"`
 - model
@@ -70,7 +70,7 @@ await openai.chat.completions.create({
 });
 ```
 
-This is useful for wide migrations, but the tracked adapter is clearer for new code.
+This is useful for wide migrations, but the tracked OpenAI client is clearer for new code.
 
 ## Custom run input
 
@@ -92,7 +92,7 @@ Use `getRunInput` when metadata is not available on the provider request or when
 
 ## Explicit helper
 
-Use `trackOpenAI(...)` when you prefer one explicit helper call around the provider request.
+Use `trackOpenAI(...)` when you already have your own helper function around OpenAI calls.
 
 ```ts
 const response = await margovia.trackOpenAI({
@@ -147,4 +147,4 @@ await margovia.track({
 });
 ```
 
-That creates a run, but the raw client does not report token usage to Margovia. Use `wrapOpenAI(...)`, `trackOpenAI(...)`, or `run.trackCost(...)`.
+That creates a run, but the raw client does not report token usage to Margovia. Use `margovia.openai(client)`, `wrapOpenAI(...)`, `trackOpenAI(...)`, or `run.trackCost(...)`.

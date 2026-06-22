@@ -14,6 +14,8 @@ npm install @margovia/sdk
 
 ## Environment
 
+You need a Margovia API key in the backend app that calls your model provider:
+
 ```env
 MARGOVIA_API_KEY=mg_live_xxx
 ```
@@ -30,7 +32,7 @@ This SDK is open source because instrumentation should be inspectable, portable,
 
 ## Where to use it
 
-Use the SDK in server-side code that already calls OpenAI, Anthropic, or another model provider. Do not expose `MARGOVIA_API_KEY` in browser code.
+Use the SDK in backend code that already calls OpenAI, Anthropic, or another model provider. Do not expose `MARGOVIA_API_KEY` in browser code.
 
 Works with Node/JS backends such as Express, Fastify, Hono, Next.js route handlers/server actions, Remix actions, workers, and background jobs.
 
@@ -76,11 +78,13 @@ Use the SDK based on what you are tracking:
 | One product workflow has several provider/tool calls | `margovia.track(...)` around wrapped clients or manual cost calls |
 | You use another paid API or custom provider | `startRun(...)`, `run.trackCost(...)`, `run.complete(...)` |
 
-`margovia.track(...)` is a workflow wrapper. It does not read provider token usage by itself. For AI cost tracking, use provider wrappers/helpers or manually report cost.
+`margovia.track(...)` is a workflow wrapper. It does not read provider token usage by itself. For AI cost tracking, use a tracked provider client or manually report cost.
 
-## Easiest: tracked provider adapter
+## Easiest: tracked provider client
 
-Create a tracked provider adapter once, then call it with Margovia run fields and the real provider request.
+Create a tracked provider client once, then call it with Margovia fields and the real provider request.
+
+In plain English: keep using OpenAI or Anthropic, but send the customer and workflow name beside the provider request.
 
 ```ts
 import OpenAI from "openai";
@@ -102,7 +106,7 @@ await openai.chat.completions.create({
 });
 ```
 
-The adapter starts the run, calls OpenAI, reads `response.usage`, records cost, and completes or fails the run.
+The tracked client starts the run, calls OpenAI, reads `response.usage`, records cost, and completes or fails the run.
 
 ## Explicit: provider helper
 
@@ -188,7 +192,7 @@ if (!guardrail.allowed) {
 
 ## Manual runs
 
-Use manual runs only when you need explicit lifecycle control. For normal OpenAI or Anthropic calls, prefer wrappers or provider helpers. For multi-step workflows, prefer `margovia.track(...)` around wrapped clients or manual cost calls.
+Use manual runs only when you need explicit lifecycle control. For normal OpenAI or Anthropic calls, prefer `margovia.openai(client)` or `margovia.anthropic(client)`. For multi-step workflows, prefer `margovia.track(...)` around wrapped clients or manual cost calls.
 
 ```ts
 const run = await margovia.startRun({

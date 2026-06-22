@@ -1,17 +1,19 @@
 ---
 title: Environment variables
-description: Configure the SDK with server-side environment variables.
+description: Configure the SDK with backend environment variables.
 ---
 
 ## Required
+
+Set this in the backend app that calls your model provider:
 
 ```env
 MARGOVIA_API_KEY=mg_live_xxx
 ```
 
-The API key authenticates events sent to Margovia. Keep it server-side.
+The API key authenticates events sent to Margovia. Keep it on the backend. Do not expose it in browser code.
 
-If `MARGOVIA_API_KEY` is missing, the SDK becomes a no-op. Installing the SDK alone sends nothing.
+If `MARGOVIA_API_KEY` is missing, the SDK skips Margovia tracking. Installing the SDK alone sends nothing.
 
 When `MARGOVIA_API_KEY` is configured, the SDK sends events to Margovia Cloud at `https://api.margovia.com` unless `MARGOVIA_BASE_URL` overrides it.
 
